@@ -1,0 +1,22 @@
+[project]
+name = "salescore"
+version = "0.1.0"
+description = "Unified AI sales-team core: multi-tenant, catalog-driven, agent + ML"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy>=2",
+    "httpx",
+    "pandas",
+    "scikit-learn",
+    "tzdata",
+    "joblib>=1.6.0",
+    "pillow>=12.3.0",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

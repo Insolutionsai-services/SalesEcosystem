@@ -1,0 +1,9 @@
+name,phone,email,consent,source,city,customer_type
+Karthik Hardware,9840011001,karthik.hw@example.com,yes,dealer_list,Chennai,dealer
+Sri Murugan Paints,9840011002,,yes,dealer_list,Madurai,dealer
+Anand Builders,9840011003,anand@example.com,yes,website_form,Chennai,contractor
+Priya Raman,9840011004,priya.r@example.com,yes,meta_lead_ad,Chennai,homeowner
+Vignesh K,9840011005,,no,indiamart,Coimbatore,contractor
+Lakshmi Homes,9840011006,lakshmi@example.com,yes,website_form,Chennai,contractor
+Arjun S,9840011007,,yes,meta_lead_ad,Trichy,homeowner
+Meena Interiors,9840011008,meena@example.com,no,referral,Chennai,contractor
