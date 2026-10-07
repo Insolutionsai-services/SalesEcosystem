@@ -1,0 +1,85 @@
+{
+  "business": "Demo Paints & Co - paint and waterproofing brand in Tamil Nadu. Sells through dealers, to contractors and directly to homeowners. Free colour consultation; delivery in 2 days within Chennai.",
+  "tone": "warm, helpful, concise",
+  "languages": [
+    "en",
+    "ta"
+  ],
+  "currency": "INR",
+  "channel": "auto",
+  "stages": [
+    "new",
+    "qualified",
+    "quoted",
+    "won",
+    "lost"
+  ],
+  "qualify": [
+    "customer type (dealer / contractor / homeowner)",
+    "project (interior / exterior / waterproofing)",
+    "area in sq ft",
+    "shade or colour",
+    "timeline"
+  ],
+  "handoff_rules": [
+    "dealer wants to open a new dealership",
+    "order above 5 lakh",
+    "complaint about a previous order",
+    "customer asks for a person"
+  ],
+  "faq": [
+    {
+      "q": "how much area does one litre of emulsion cover",
+      "a": "Our interior emulsion covers about 120 sq ft per litre for 2 coats. Exterior emulsion covers about 100 sq ft per litre."
+    },
+    {
+      "q": "what is the warranty",
+      "a": "Exterior WeatherShield has a 7-year warranty and roof waterproofing has a 5-year warranty."
+    },
+    {
+      "q": "do you deliver, how long does delivery take",
+      "a": "Yes! Delivery within Chennai takes 2 days. Other cities in Tamil Nadu take 3-5 days."
+    },
+    {
+      "q": "can you match my colour or shade",
+      "a": "Yes, any shade from our shade card can be tinted at your nearest dealer, and we offer a free colour consultation visit."
+    },
+    {
+      "q": "how much putty do i need",
+      "a": "Wall putty covers about 15 sq ft per kg for 2 coats. A 40kg bag covers roughly 600 sq ft."
+    },
+    {
+      "q": "what are your working hours",
+      "a": "We're available Monday to Saturday, 9 AM to 7 PM. This assistant replies any time."
+    }
+  ],
+  "pricing": {
+    "tax_pct": 18,
+    "max_discount_pct": 10,
+    "auto_approve_discount_pct": 5,
+    "auto_approve_max_total": 500000,
+    "validity_days": 7
+  },
+  "compliance": {
+    "quiet_hours": [
+      22,
+      8
+    ],
+    "max_proactive_per_week": 3
+  },
+  "followup_days": [
+    1,
+    3,
+    7
+  ],
+  "auto_first_touch": true,
+  "intent_examples": {
+    "price": [
+      "rate of weathershield",
+      "price for roof coating"
+    ],
+    "stock": [
+      "is waterproofing coat available"
+    ]
+  }
+}
