@@ -60,6 +60,18 @@ def first_name(name: str | None, fallback: str = "there") -> str:
     return (name or "").split()[0] if (name or "").strip() else fallback
 
 
+def whatsapp_format(text: str) -> str:
+    """WhatsApp renders *bold* _italic_ ~strike~. Models often write Markdown (**bold**, # heading): convert it so
+    customers never see stray asterisks."""
+    text = re.sub(r"^#{1,6}\s*(.+?)\s*$", r"*\1*", text, flags=re.MULTILINE)
+    return re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: f"*{m.group(1) or m.group(2)}*", text)
+
+
+def plain_text(text: str) -> str:
+    """For email (plain text): drop the bold markers instead of showing them."""
+    return re.sub(r"\*\*?(\S(?:[^*\n]*?\S)?)\*\*?", r"\1", re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE))
+
+
 def to_json(obj) -> str:
     return json.dumps(obj, default=str, ensure_ascii=False, sort_keys=True)
 

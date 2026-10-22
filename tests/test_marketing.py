@@ -92,6 +92,12 @@ def test_full_chain_with_feedback_loop(s, tenant, customers, llm_stub):
     assert r["sent"] == 36 and r["replied"] == 9 and r["won"] == 1 and r["revenue"] == 5900
     assert r["reply_rate"] == 0.25 and r["holdout"]["reply_rate"] == 0 and r["lift_reply_rate"] == 0.25
     assert set(r["variants"]) == {"A", "B"}
+    # who replied, ranked by interest: the buyer first, everyone else a warm lead with their words attached
+    assert r["no_reply"] == 27 and len(r["interested"]) == 9
+    top = r["interested"][0]
+    assert top["contact_id"] == repliers[0].id and top["interest"] == "hot" and top["reply"].startswith("yes, tell me")
+    assert sum(r["interest_counts"].values()) == 9 and r["interest_counts"]["hot"] >= 1
+    assert attribution._interest("please stop messaging me", "other", False, False) == "not_interested"
     reply_rate, _, learned = strategy.learned_rates(s, tenant.id, "win_back")
     assert learned == 1 and reply_rate > strategy.PRIOR_REPLY_RATE  # 25% observed pulls the estimate up
     assert "win_back" not in {p.key for p in strategy.recommend(s, tenant)}  # cooldown after sending

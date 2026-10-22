@@ -11,7 +11,7 @@ import httpx
 from ..core.config import MEDIA_DIR, WA_API_VERSION
 from ..core.models import Contact, Tenant
 from ..core.playbook import setting
-from ..core.utils import now
+from ..core.utils import now, plain_text, whatsapp_format
 from . import compliance
 from .activity import log_activity
 
@@ -43,6 +43,7 @@ def _wa_media_id(tenant: Tenant, name: str) -> str:
 
 
 def _whatsapp(tenant: Tenant, contact: Contact, text: str, image: str | None = None) -> None:
+    text = whatsapp_format(text)
     if compliance.in_service_window(contact, now()):
         body = ({"type": "image", "image": {"id": _wa_media_id(tenant, image), "caption": text[:CAPTION_LIMIT]}}
                 if image else {"type": "text", "text": {"body": text}})
@@ -65,7 +66,7 @@ def _email(tenant: Tenant, contact: Contact, text: str, image: str | None = None
     msg = EmailMessage()
     msg["From"], msg["To"] = os.environ["SMTP_FROM"], contact.email
     msg["Subject"] = setting(tenant, "email_subject") or tenant.name
-    msg.set_content(text)
+    msg.set_content(plain_text(text))
     if image:
         path, mime = _image(image)
         main, sub = mime.split("/")
