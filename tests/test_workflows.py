@@ -2,9 +2,9 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from salescore.core.models import Contact, Quote, Task
+from salescore.core.models import Activity, Contact, Quote, Task
 from salescore.core.utils import now
-from salescore.services import channels, contacts
+from salescore.services import channels, compliance, contacts
 from salescore.services.tasks import add_task
 from salescore.workflows import inbound, scheduler
 
@@ -35,6 +35,13 @@ def test_inbound_quote_followup_and_optout(s, tenant, llm_stub):
     inbound.handle_inbound(s, tenant, "STOP", phone="9123456789")
     assert c.opted_out and not open_tasks(s, "followup")
     assert channels.send(s, tenant, c, "promo", "marketing") is False
+
+    # a customer can come back with a plain sentence (no LLM needed) and is answered at once
+    reply = inbound.handle_inbound(s, tenant, "i want to get the updates can you optin", phone="9123456789")
+    assert not c.opted_out and reply.startswith("You're subscribed again")
+    assert s.scalars(select(Activity).where(Activity.type == "msg_out")).all()[-1].body == reply
+    inbound.handle_inbound(s, tenant, "STOP", phone="9123456789")
+    assert compliance.is_opt_out("stop") and not compliance.is_opt_in("please don't subscribe me")
 
 
 def test_tool_error_goes_back_to_model(s, tenant, llm_stub):

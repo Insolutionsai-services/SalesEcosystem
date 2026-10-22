@@ -30,6 +30,7 @@ DEFAULTS = {
     "email_subject": None,
     "opt_out_footer": "Reply STOP to opt out.",
     "opt_out_reply": "You're unsubscribed. Reply START any time to hear from us again.",
+    "opt_in_reply": "You're subscribed again. We'll keep you posted with updates. Reply STOP any time to opt out.",
     "handoff_reply": "Thanks! A team member will get back to you shortly.",
     # Local answers from the trained models (no LLM call). Raise thresholds for fewer, safer local answers.
     "fastpath": {"enabled": True, "min_confidence": 0.55, "catalog_min_score": 0.45, "catalog_min_margin": 0.05,

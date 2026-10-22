@@ -46,7 +46,7 @@ Data/CRM → Strategy → Creative → Verification → Human approval → Distr
 | **Distribution** | Doing | WhatsApp/email broadcast at the planned time, stable A/B split, holdout group, every message tagged with campaign + variant; social/ad posts to a webhook (Postiz, Zapier, Make, n8n) | `marketing/distribution` · `services/channels` | ✅ (native ad APIs: later) |
 | **Response** | Doing | Replies in seconds (local models first, LLM when needed), qualifies, quotes, follow-up cadence, reorder nudges, hand-off | `workflows/inbound, followups` · `ai/` | ✅ |
 | **Voice** | Doing (later phase) | Calls for engaged leads (IndicConformer ASR + Indic Parler-TTS) | — | ⏳ deferred, as planned |
-| **Analytics** | Learning | Per campaign: replies, quotes, sales, revenue within the attribution window, per variant, vs holdout (lift), A/B winner. Plus dashboard, lead scoring, RFM, speed-to-lead, AI cost | `marketing/attribution` · `analytics/metrics, scoring` | ✅ |
+| **Analytics** | Learning | Per campaign: replies, quotes, sales, revenue within the attribution window, per variant, vs holdout (lift), A/B winner. Also **who replied and how interested** (hot / warm / low / not interested, with their words), ranked so a person works the best prospects first. Plus dashboard, lead scoring, RFM, speed-to-lead, AI cost | `marketing/attribution` · `analytics/metrics, scoring` | ✅ |
 | **Orchestrator** | Control | Runs Strategy→Creative→Verification→approval; sends scheduled campaigns every tick; daily: measure results, optionally auto-draft the next best play (`marketing.auto_draft`) | `marketing/orchestrator` · `workflows/scheduler` | ✅ |
 
 The **Sales team** tab in the UI shows this roster live, with each agent's activity over the last 30 days;

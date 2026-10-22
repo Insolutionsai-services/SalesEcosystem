@@ -86,3 +86,13 @@ def test_payments_and_sales_report(s, tenant):
     assert r["current"]["quotes"] == 1 and r["current"]["orders"] == 1 and r["current"]["paid"] == 1000
     assert r["outstanding"] == round(q.total - 1000, 2) and r["unpaid_orders"] == 1
     assert r["current"]["enquiries"] == 1 and sum(r["trend"]["orders"]) == 1
+
+
+def test_message_formatting_and_voice_rules():
+    from salescore.ai.prompts import system_prompt
+    from salescore.core.utils import plain_text, whatsapp_format
+    md = "## Offer\nOur **premium quality** paint\n- __Silk__ finish"
+    assert whatsapp_format(md) == "*Offer*\nOur *premium quality* paint\n- *Silk* finish"  # WhatsApp has no ** or #
+    assert plain_text("Our **premium** paint, *10L*") == "Our premium paint, 10L"
+    rules = system_prompt("reply", "{}")
+    assert "premium" in rules and "Never compare with other brands" in rules and "*bold* with single asterisks" in rules

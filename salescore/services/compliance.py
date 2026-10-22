@@ -1,4 +1,5 @@
 """Compliance gate. Plain code, never an LLM: every outbound message passes here or is not sent."""
+import re
 from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
@@ -9,6 +10,9 @@ from ..core.utils import hour_in_window, to_local
 
 OPT_OUT_WORDS = {"stop", "unsubscribe", "opt out", "optout", "stop all", "cancel"}
 OPT_IN_WORDS = {"start", "subscribe"}
+OPT_IN_PHRASE = re.compile(r"\b(opt[- ]?in|re-?subscribe|subscribe me|send me (the )?updates|(want|like) to (get|receive) (the )?updates|"
+                           r"get (the )?updates)\b", re.IGNORECASE)
+NEGATION = re.compile(r"\b(don'?t|do not|never|no)\b", re.IGNORECASE)
 SERVICE_WINDOW = timedelta(hours=24)  # WhatsApp customer-service window
 TEMPORARY_BLOCKS = {"quiet hours", "frequency cap"}  # retry later; everything else is final
 
@@ -22,7 +26,8 @@ def is_opt_out(text: str) -> bool:
 
 
 def is_opt_in(text: str) -> bool:
-    return _keyword(text) in OPT_IN_WORDS
+    """START / SUBSCRIBE, or a plain sentence like "i want to get the updates, can you optin"."""
+    return _keyword(text) in OPT_IN_WORDS or bool(OPT_IN_PHRASE.search(text) and not NEGATION.search(text))
 
 
 def has_consent(s, contact: Contact) -> bool:

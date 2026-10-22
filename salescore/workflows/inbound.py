@@ -28,6 +28,9 @@ def handle_inbound(s, tenant: Tenant, text: str, phone=None, email=None, name=No
         return reply
     if compliance.is_opt_in(text):
         contacts.set_opt_out(s, tenant, contact, False, source=f"customer said: {text}")
+        reply = setting(tenant, "opt_in_reply")
+        channels.send(s, tenant, contact, reply, "reply")  # consent is back and they just wrote, so the gate allows it
+        return reply
     if contact.bot_paused:
         return None  # a human owns this conversation; it shows in their queue via the activity log
     if not agents.enabled(tenant, "response"):  # replies switched off for this company: a person answers

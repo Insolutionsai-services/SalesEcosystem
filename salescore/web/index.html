@@ -93,7 +93,7 @@
   .main { min-width: 0; display: flex; flex-direction: column; min-height: 0; }
   .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
     position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
-  .ask { flex: 1; display: flex; align-items: center; gap: 10px; max-width: 560px; border: 1px solid var(--line); border-radius: 999px;
+  .ask { flex: 1; margin-right: auto; display: flex; align-items: center; gap: 10px; max-width: 560px; border: 1px solid var(--line); border-radius: 999px;
     padding: 8px 14px; background: var(--surface-2); color: var(--muted); cursor: text; text-align: left;
     transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
   .ask:hover { border-color: var(--agent); background: var(--surface); box-shadow: 0 0 0 4px var(--agent-ring); }
@@ -101,7 +101,6 @@
   .team-pill { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--muted); white-space: nowrap; }
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--agent); box-shadow: 0 0 0 0 var(--agent-ring); animation: beat 2s infinite; }
   @keyframes beat { 0% { box-shadow: 0 0 0 0 var(--agent-ring); } 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
-  .model { font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; margin-left: auto; }
   .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center;
     cursor: pointer; color: var(--muted); transition: background-color .15s ease, color .15s ease, transform .12s ease; flex: none; }
   .icon-btn:hover { background: var(--surface-2); color: var(--ink); } .icon-btn:active { transform: scale(.94); }
@@ -515,7 +514,6 @@
 
   @media (max-width: 1180px) {
     .copilot { position: fixed; right: 0; top: 0; bottom: 0; z-index: 15; box-shadow: var(--shadow-pop); max-width: 100%; }
-    .model { display: none; }
   }
   @media (max-width: 900px) {
     .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
@@ -561,7 +559,6 @@
     <header class="topbar">
       <button class="ask" id="askBar" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Ask your team anything…</span><kbd>/</kbd></button>
       <span class="team-pill" id="teamPill" hidden><span class="live-dot"></span><span id="teamPillText"></span></span>
-      <span class="model" id="modelInfo"></span>
       <button class="icon-link" id="analyticsLink" type="button" title="Sales results"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-6"/></svg><span>Analytics</span></button>
       <button class="icon-btn" id="themeBtn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
       <div class="user-wrap">
@@ -855,6 +852,15 @@
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Message text -> safe HTML with WhatsApp-style formatting (*bold* _italic_ ~strike~ ```mono``` - bullets) and Markdown **bold**, # headings
+const fmt = (t) => esc(t)
+  .replace(/```([\s\S]+?)```/g, "<code>$1</code>")
+  .replace(/\*\*(\S(?:[^*\n]*?\S)?)\*\*/g, "<strong>$1</strong>")
+  .replace(/(^|[\s(])\*(\S(?:[^*\n]*?\S)?)\*(?=$|[\s.,!?;:)])/gm, "$1<strong>$2</strong>")
+  .replace(/(^|[\s(])_(\S(?:[^_\n]*?\S)?)_(?=$|[\s.,!?;:)])/gm, "$1<em>$2</em>")
+  .replace(/(^|[\s(])~(\S(?:[^~\n]*?\S)?)~(?=$|[\s.,!?;:)])/gm, "$1<s>$2</s>")
+  .replace(/^#{1,6}\s*(.+)$/gm, "<strong>$1</strong>")
+  .replace(/^[-•]\s+/gm, "• ");
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
@@ -1108,19 +1114,20 @@ function renderContactList() {
     </div>`).join("") || `<div class="empty">No customers yet</div>`;
 }
 $("#contactFilter").oninput = renderContactList;
+const isMessage = (ev) => ev.type === "msg_in" || ev.type === "msg_out";
 function eventHtml(ev) {
   const d = ev.data || {};
-  if (ev.type === "msg_in") return `<div class="bubble in">${esc(ev.body)}<div class="meta">Customer · ${esc(ev.channel || "")} · ${ago(ev.at)}</div></div>`;
+  if (ev.type === "msg_in") return `<div class="bubble in">${fmt(ev.body)}<div class="meta">Customer · ${ago(ev.at)}</div></div>`;
   if (ev.type === "msg_out") {
     const by = d.via === "fastpath" ? "Response agent · instant" : d.via === "llm" ? "Response agent" : d.via === "campaign" ? `Campaign · version ${d.variant}` : d.via === "human" ? "You" : "Agent";
     const pic = d.image ? `<img class="poster" src="/media/${esc(d.image)}" alt="Poster sent" style="max-width:220px;display:block;margin-bottom:6px">` : "";
-    return `<div class="bubble out ${d.via === "human" ? "person" : ""}">${pic}${esc(ev.body)}<div class="meta">${esc(by)} · ${ago(ev.at)}</div></div>`;
+    return `<div class="bubble out ${d.via === "human" ? "person" : ""}">${pic}${fmt(ev.body)}<div class="meta">${esc(by)} · ${ago(ev.at)}</div></div>`;
   }
   if (ev.type === "blocked") return `<div class="sys bad">Verification stopped a ${esc(d.kind)} message: ${esc(d.reason)}</div>`;
   if (ev.type === "failed") return `<div class="sys bad">Delivery failed: ${esc(d.error)}</div>`;
   if (ev.type === "quote") return `<div class="sys">Quote #${esc(d.quote_id)} ${esc(nice(d.status))}${d.total != null ? " · " + money(d.total) : ""}</div>`;
   if (ev.type === "stage") return `<div class="sys">Stage ${esc(ev.body)}</div>`;
-  if (ev.type === "llm") return `<div class="sys">AI model ${esc(d.model)} · ${esc(d.tokens_in + d.tokens_out)} tokens · ${esc(d.seconds)}s</div>`;
+  if (ev.type === "llm") return `<div class="sys">AI · ${esc(d.tokens_in + d.tokens_out)} tokens · ${esc(d.seconds)}s</div>`;
   return "";
 }
 async function openContact(id) {
@@ -1133,7 +1140,8 @@ async function openContact(id) {
     <div class="panel-head" style="margin-bottom:6px"><div><h2>${esc(c.name || c.phone || c.email)}</h2><div class="tiny muted">${esc(c.phone || "")} ${esc(c.email || "")} · came from ${esc(nice(c.source) || "–")}</div></div>
       <div class="row">${pill(c.stage, "agent")}${c.segment ? pill(nice(c.segment)) : ""}${c.score != null ? pill(pct(c.score) + " to buy") : ""}${c.bot_paused ? pill("with a person", "human") : pill("agents handling", "good")}${c.opted_out ? pill("opted out", "bad") : ""}</div></div>
     <div class="row" style="margin-bottom:8px">${facts}</div>
-    <div class="timeline" id="timeline">${events.map(eventHtml).join("") || `<div class="empty">No messages yet</div>`}</div>
+    <div class="timeline" id="timeline">${events.filter(isMessage).map(eventHtml).join("") || `<div class="empty">No messages yet</div>`}</div>
+    ${events.some((e) => !isMessage(e)) ? `<details class="logs"><summary class="tiny muted">Logs</summary>${events.filter((e) => !isMessage(e)).map((e) => `<div class="tiny muted">${ago(e.at)}</div>${eventHtml(e)}`).join("")}</details>` : ""}
     <div class="reply-grid">
       <div><label for="custMsg">Customer says</label><textarea id="custMsg" rows="2" placeholder="Next message from the customer"></textarea>
         <button class="btn human" id="custSend" style="margin-top:8px">Send as customer</button></div>
@@ -1303,12 +1311,21 @@ function steps(c) {
     step("Analytics", r ? "done" : "", r ? `${pct(r.reply_rate)} replied` : ""),
   ].join('<span class="arrow">→</span>');
 }
+const INTEREST = { hot: ["Hot", "good"], warm: ["Warm", "agent"], low: ["Low", ""], not_interested: ["Not interested", "bad"] };
+function interestedHtml(r) {
+  const people = r.interested || [], c = r.interest_counts || {};
+  const head = `<div class="small"><strong>${r.sent}</strong> sent · <strong>${r.replied}</strong> replied (${pct(r.reply_rate)}) · ${r.no_reply} no reply` +
+    ` · ${Object.entries(INTEREST).map(([k, [label]]) => `${label} ${c[k] || 0}`).join(" · ")}</div>`;
+  if (!people.length) return head;
+  const rows = people.slice(0, 50).map((x) => `<tr><td>${esc(x.name || x.phone || x.email || "")}<div class="tiny muted">${esc(x.phone || x.email || "")}</div></td><td>${pill(...INTEREST[x.interest])}</td><td>${esc(x.reply)}</td><td class="tiny muted">${ago(x.replied_at)}</td></tr>`);
+  return `${head}<div class="scroll-x"><table class="small"><thead><tr><th>Who replied</th><th>Interest</th><th>What they said</th><th>When</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
 function resultsHtml(r) {
   if (!r) return "";
   const rows = Object.entries(r.variants || {}).map(([k, v]) => `<tr><td>Version ${esc(k)}${r.winner === k ? " " + pill("better", "good") : ""}</td><td class="r">${v.n}</td><td class="r">${v.replied}</td><td class="r">${pct(v.reply_rate)}</td><td class="r">${v.won}</td></tr>`);
   rows.push(`<tr><td>Holdout (no message)</td><td class="r">${r.holdout.n}</td><td class="r">${r.holdout.replied}</td><td class="r">${pct(r.holdout.reply_rate)}</td><td class="r">${r.holdout.won}</td></tr>`);
   return `<div class="scroll-x"><table class="small"><thead><tr><th></th><th class="r">Sent</th><th class="r">Replied</th><th class="r">Rate</th><th class="r">Won</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
-    <div class="tiny muted">Lift over holdout ${r.lift_reply_rate == null ? "–" : (r.lift_reply_rate * 100).toFixed(1) + " points"} · revenue ${money(r.revenue)} · ${r.complete ? "final" : `counting for ${r.window_days} days`}</div>`;
+    <div class="tiny muted">Lift over holdout ${r.lift_reply_rate == null ? "–" : (r.lift_reply_rate * 100).toFixed(1) + " points"} · revenue ${money(r.revenue)} · ${r.complete ? "final" : `counting for ${r.window_days} days`}</div>${interestedHtml(r)}`;
 }
 loaders.marketing = async () => {
   const [plays, list, team] = await Promise.all([api("/v1/marketing/recommendations"), api("/v1/campaigns"), api("/v1/team")]);
@@ -1898,7 +1915,6 @@ async function boot() {
     $("#today").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
     $("#staleBanner").hidden = !me.stale;
     $("#homeTitle").textContent = me.name;
-    $("#modelInfo").textContent = `AI: ${me.llm.provider} · ${me.llm.model}`;
   } catch (e) { return $("#login").hidden ? toast(e.message, true) : undefined; }
   openPage(store.get("sc_page") || "home");
   api("/v1/team").then(renderTeamPill).catch(() => {});
