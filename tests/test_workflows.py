@@ -1,10 +1,12 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import select
 
 from salescore.core.models import Activity, Contact, Quote, Task
 from salescore.core.utils import now
 from salescore.services import channels, compliance, contacts
+from salescore.services import tasks
 from salescore.services.tasks import add_task
 from salescore.workflows import inbound, scheduler
 
@@ -59,6 +61,23 @@ def test_handoff_pauses_bot(s, tenant, llm_stub):
     assert inbound.handle_inbound(s, tenant, "hello?", phone="9123451111") is None  # human owns it now
     inbound.human_reply(s, tenant, c, "Hi, this is Priya from sales.", resume_bot=True)
     assert not c.bot_paused and not open_tasks(s, "handoff")
+
+
+def test_ai_unavailable_handoff_clears_when_ai_answers_again(s, tenant, monkeypatch):
+    def down(*a, **k):
+        raise inbound.llm.LLMUnavailable("no key")
+    monkeypatch.setattr(inbound.llm, "chat", down)
+    monkeypatch.setattr(inbound.fastpath, "answer", lambda *a, **k: None)
+    inbound.handle_inbound(s, tenant, "tell me about your company", phone="9123452222")
+    assert len(open_tasks(s, "handoff")) == 1  # AI is down: a person is asked, the bot is not paused
+    monkeypatch.setattr(inbound.fastpath, "answer", lambda *a, **k: SimpleNamespace(text="Hello!", handoff=False))
+    inbound.handle_inbound(s, tenant, "hi", phone="9123452222")
+    assert not open_tasks(s, "handoff")  # a local model answered, so Needs you clears
+
+
+def test_tasks_list_newest_first(s, tenant):
+    first, second = (add_task(s, tenant.id, None, "handoff", reason=r) for r in ("a", "b"))
+    assert [t.id for t in tasks.list_tasks(s, tenant.id)] == [second.id, first.id]
 
 
 def test_followup_cadence_and_skip(s, tenant, llm_stub):

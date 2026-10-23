@@ -35,7 +35,7 @@ def open_contact_ids(s, tenant_id: int, kind: str) -> set[int]:
 
 
 def list_tasks(s, tenant_id: int, status: str = "open", kind: str | None = None, limit: int = 500) -> list[Task]:
-    q = select(Task).where(Task.tenant_id == tenant_id, Task.status == status).order_by(Task.due_at)
+    q = select(Task).where(Task.tenant_id == tenant_id, Task.status == status).order_by(Task.id.desc())  # newest first
     if kind:
         q = q.where(Task.kind == kind)
     return s.scalars(q.limit(limit)).all()

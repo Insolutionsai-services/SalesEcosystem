@@ -39,7 +39,8 @@ def clean() -> None:
     db = Path(DATABASE_URL.removeprefix("sqlite:///")) if DATABASE_URL.startswith("sqlite:///") else None
     try:
         if db:
-            db.unlink(missing_ok=True)
+            for f in (db, Path(f"{db}-wal"), Path(f"{db}-shm")):
+                f.unlink(missing_ok=True)
     except PermissionError:
         raise SystemExit(f"{db} is in use: stop make dev (Ctrl+C) first, then run make clean again.")
     shutil.rmtree(MODEL_DIR, ignore_errors=True)

@@ -66,6 +66,25 @@ def interested(s, tenant: Tenant, by_variant: dict, start, end) -> list[dict]:
     return sorted(out, key=lambda r: (ORDER[r["interest"]], -(r["score"] or 0)))
 
 
+def recipients(s, tenant: Tenant, campaign: Campaign) -> list[dict]:
+    """Everyone the campaign was sent to, with their interest if they replied ("no_reply" otherwise), best prospects first."""
+    if not campaign.sent_at or campaign.channel == "social":
+        return []
+    start, end = campaign.sent_at, campaign.sent_at + timedelta(days=setting(tenant, "marketing.attribution_days"))
+    by_variant: dict[str, set[int]] = {}
+    for a in s.scalars(select(Activity).where(Activity.tenant_id == tenant.id, Activity.type == "msg_out",
+                                              Activity.data["campaign_id"].as_integer() == campaign.id)):
+        by_variant.setdefault(a.data.get("variant", "A"), set()).add(a.contact_id)
+    replied = {p["contact_id"]: p for p in interested(s, tenant, by_variant, start, end)}
+    variant_of = {cid: label for label, ids in by_variant.items() for cid in ids}
+    out = []
+    for c in s.scalars(select(Contact).where(Contact.id.in_(set().union(*by_variant.values()) if by_variant else set()))):
+        r = replied.get(c.id, {})
+        out.append({"contact_id": c.id, "name": c.name, "phone": c.phone, "email": c.email, "interest": r.get("interest", "no_reply"),
+                    "variant": variant_of[c.id], "reply": r.get("reply"), "replied_at": r.get("replied_at"), "score": c.score})
+    return sorted(out, key=lambda r: (ORDER.get(r["interest"], 4), -(r["score"] or 0)))
+
+
 def _rate(part: int, whole: int) -> float | None:
     return round(part / whole, 4) if whole else None
 

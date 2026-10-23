@@ -244,6 +244,12 @@ def audience_preview(body: schemas.Audience, t: Tenant = Depends(tenant_of), s=D
     return audience.preview(s, t, body.segment)
 
 
+@router.get("/campaigns/{campaign_id}/recipients")
+def campaign_recipients(campaign_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Who a sent campaign went to, and how interested each person who replied is."""
+    return attribution.recipients(s, t, owned(s, Campaign, campaign_id, t))
+
+
 @router.post("/campaigns/{campaign_id}/poster")
 def campaign_poster(campaign_id: int, body: schemas.PosterWords, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Design (or redesign) the campaign poster with the company name; optional own words."""

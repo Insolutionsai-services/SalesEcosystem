@@ -41,6 +41,8 @@ def handle_inbound(s, tenant: Tenant, text: str, phone=None, email=None, name=No
     reply, via = answer(s, tenant, contact, text)
     if channels.send(s, tenant, contact, reply, "reply", via) and not contact.bot_paused:
         schedule_followup(s, tenant, contact, step=0)
+        if via != "fallback":  # the AI answered again, so its "AI unavailable / agent off" hand-offs are resolved
+            close_open_tasks(s, contact.id, "handoff")
     score_contact(s, tenant, contact)  # real-time P(win) with the trained model
     return reply
 
