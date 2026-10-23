@@ -222,6 +222,7 @@
   .event .when { font-size: .72rem; color: var(--muted); white-space: nowrap; padding-top: 2px; }
   .event.warn .what { color: var(--warn); } .event.bad .what { color: var(--bad); }
 
+  .unread { width: 10px; height: 10px; border-radius: 50%; background: var(--human); flex: none; }
   .task { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; background: var(--surface);
     transition: box-shadow .2s ease, transform .2s var(--ease); position: relative; overflow: hidden; }
   .task:hover { box-shadow: var(--shadow-hover); }
@@ -232,13 +233,20 @@
   .play { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; padding: 14px 0; }
   .play + .play { border-top: 1px solid var(--line); }
   .play .facts { grid-column: 1 / -1; font-size: .8rem; color: var(--muted); display: flex; gap: 6px 16px; flex-wrap: wrap; }
-  .steps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-  .step { font-size: .74rem; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-weight: 600; }
-  .step.done { background: var(--agent-soft); color: var(--agent); } .step.wait { background: var(--human-soft); color: var(--human); }
-  .step.bad { background: var(--bad-soft); color: var(--bad); }
-  .arrow { color: var(--line-strong); font-size: .75rem; }
   .campaign { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; }
   .campaign + .campaign { border-top: 1px solid var(--line); }
+  .seg .n { margin-left: 6px; font-size: .72rem; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .seg .n:empty { display: none; } .seg button[aria-pressed="true"] .n { background: var(--agent-soft); color: var(--agent); }
+  .mk-split { display: grid; gap: 16px; grid-template-columns: minmax(250px, 340px) minmax(0, 1fr); align-items: start; }
+  .mk-item { display: flex; flex-direction: column; gap: 6px; width: 100%; text-align: left; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-sm);
+    background: var(--surface); cursor: pointer; font: inherit; color: inherit; transition: border-color .15s ease, background .15s ease; }
+  .mk-item + .mk-item { margin-top: 8px; } .mk-item:hover { background: var(--surface-2); }
+  .mk-item[aria-pressed="true"] { border-color: var(--agent); background: var(--agent-soft); }
+  .stat-btn { border: 1px solid transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; } .stat-btn:hover { border-color: var(--line-strong); }
+  .stat-btn[aria-pressed="true"] { border-color: var(--agent); background: var(--agent-soft); }
+  .mk-tiles { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+  .mk-empty { border: 1px dashed var(--line-strong); border-radius: var(--r-sm); padding: 18px; text-align: center; color: var(--muted); font-size: .9rem; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  @media (max-width: 900px) { .mk-split { grid-template-columns: minmax(0, 1fr); } }
   details summary { cursor: pointer; font-size: .82rem; color: var(--muted); font-weight: 600; }
 
   /* ---------- campaign builder ---------- */
@@ -616,7 +624,7 @@
           <div><div class="eyebrow">Human checkpoint</div><h1>Needs you</h1>
             <p>Campaigns and quotes wait here for your approval. Hand-offs are conversations the agents passed to a person.</p></div>
           <select id="taskKind" style="width:auto" aria-label="Filter">
-            <option value="">Everything open</option><option value="approval">Approvals</option><option value="handoff">Hand-offs</option>
+            <option value="needs">Needs you now</option><option value="">Everything open</option><option value="approval">Approvals</option><option value="handoff">Hand-offs</option>
             <option value="meeting">Meetings</option><option value="site_visit">Site visits</option><option value="callback">Callbacks</option>
             <option value="followup">Scheduled follow-ups</option><option value="reorder">Reorder nudges</option>
           </select>
@@ -650,6 +658,11 @@
           <button class="btn" id="measureBtn">Measure results now</button>
         </div>
         <div class="banner" id="mktBanner" hidden></div>
+        <div class="seg" role="tablist" aria-label="Marketing" id="mktTabs" style="align-self:flex-start">
+          <button type="button" role="tab" data-mtab="new" aria-pressed="true">New campaign &amp; drafts<span class="n" id="mktDraftN"></span></button>
+          <button type="button" role="tab" data-mtab="done" aria-pressed="false">Generated campaigns<span class="n" id="mktDoneN"></span></button>
+        </div>
+        <div id="mktNew" style="display:flex;flex-direction:column;gap:18px">
         <div class="panel"><div class="panel-head"><h2>Strategy agent recommends</h2><label class="switch bare" for="playPoster"><span class="small">Add an AI poster to drafts</span><input type="checkbox" id="playPoster"></label></div><div id="playList"></div></div>
         <div class="panel" id="builder">
           <div class="panel-head"><h2>New campaign</h2><span class="small muted">Choose who gets it, what it says and the picture. Nothing is sent before you approve.</span></div>
@@ -694,7 +707,12 @@
             </aside>
           </div>
         </div>
-        <div class="panel"><div class="panel-head"><h2>Campaign pipeline</h2></div><div id="campaignList"></div></div>
+        <div class="panel"><div class="panel-head"><h2>Drafts</h2><span class="small muted">Waiting for your approval in Needs you. Nothing is sent until you approve.</span></div><div id="draftList"></div></div>
+        </div>
+        <div id="mktDone" class="mk-split" hidden>
+          <div class="panel"><div class="panel-head"><h2>Generated campaigns</h2></div><div id="campaignList"></div></div>
+          <div class="panel" id="campaignDetail"></div>
+        </div>
       </section>
 
       <!-- Quotes -->
@@ -1054,6 +1072,7 @@ function variantsHtml(c) {
   return (c.variants || []).map((v) => `<div class="variant"><span class="tiny muted">Version ${esc(v.label)}${v.angle ? " · " + esc(v.angle) : ""}</span>\n${esc(v.text)}</div>`).join("")
     + (c.image_brief ? `<div class="small muted">Image brief: ${esc(c.image_brief)}</div>` : "");
 }
+const isNeeds = (t) => t.kind === "approval" || t.kind === "handoff";
 async function tasksHtml(tasks) {
   const needQuotes = tasks.some((t) => t.data.quote_id), needCampaigns = tasks.some((t) => t.data.campaign_id);
   const [quotes, campaigns] = await Promise.all([needQuotes ? api("/v1/quotes?status=pending_approval") : [], needCampaigns ? api("/v1/campaigns") : []]);
@@ -1079,13 +1098,14 @@ async function tasksHtml(tasks) {
     const title = t.contact_id ? contactName(t.contact_id) : t.data.reason || nice(t.kind);
     const reason = t.contact_id ? t.data.reason || t.data.note : "";
     return `<div class="task ${kind}" data-task="${t.id}">
-      <div class="task-head"><div class="row">${pill(nice(t.kind), t.kind === "approval" ? "human" : t.kind === "handoff" ? "bad" : "agent")}<strong>${esc(title)}</strong></div><span class="tiny muted">${ago(t.due_at)}</span></div>
+      <div class="task-head"><div class="row">${isNeeds(t) ? '<span class="unread" title="Needs you" aria-label="Needs you"></span>' : ""}${pill(nice(t.kind), t.kind === "approval" ? "human" : t.kind === "handoff" ? "bad" : "agent")}<strong>${esc(title)}</strong></div><span class="tiny muted">${ago(t.due_at)}</span></div>
       ${reason ? `<div class="small">${esc(reason)}</div>` : ""}${body}${actions ? `<div class="row">${actions}</div>` : ""}</div>`;
   }).join("");
 }
 loaders.approvals = async () => {
   const kind = $("#taskKind").value;
-  const [tasks] = await Promise.all([api(`/v1/tasks${kind ? "?kind=" + kind : ""}`), loadContacts(), refreshNeeds()]);
+  const [all] = await Promise.all([api(`/v1/tasks${kind && kind !== "needs" ? "?kind=" + kind : ""}`), loadContacts(), refreshNeeds()]);
+  const tasks = kind === "needs" ? all.filter(isNeeds) : all;  // the same kinds the sidebar badge counts
   $("#taskList").innerHTML = tasks.length ? await tasksHtml(tasks) : `<div class="panel empty"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Nothing waiting. The team is handling it.</div>`;
 };
 $("#taskKind").onchange = () => loaders.approvals();
@@ -1299,34 +1319,76 @@ function playHtml(p) {
       <span>Expected ${p.expected_replies} replies · ${money(p.expected_revenue)}</span><span>Sends ${when(p.send_at)}</span>
       <span>${p.learned_from ? `Learned from ${p.learned_from} past campaign${p.learned_from > 1 ? "s" : ""}` : "First run: starting estimate"}</span></div></div>`;
 }
-function steps(c) {
-  const st = c.status, n = (c.variants || []).length, r = c.results, approved = ["scheduled", "sent", "failed"].includes(st);
-  const step = (label, cls, detail) => `<span class="step ${cls}">${label}${detail ? " · " + esc(detail) : ""}</span>`;
-  return [
-    step("Strategy", "done", c.play === "custom" ? "your idea" : nice(c.play)),
-    step("Creative", n ? "done" : "bad", `${n} version${n === 1 ? "" : "s"}`),
-    step("Verification", !c.checks ? "" : c.checks.ok ? "done" : "bad", !c.checks ? "" : c.checks.ok ? "passed" : `${c.checks.errors.length} to fix`),
-    step("You", st === "rejected" ? "bad" : approved ? "done" : "wait", st === "rejected" ? "rejected" : approved ? "approved" : "waiting"),
-    step("Distribution", st === "sent" ? "done" : st === "failed" ? "bad" : "", st === "scheduled" ? when(c.send_at) : st === "sent" ? (c.channel === "social" ? "posted" : `${c.stats.sent} sent`) : st === "failed" ? "failed" : ""),
-    step("Analytics", r ? "done" : "", r ? `${pct(r.reply_rate)} replied` : ""),
-  ].join('<span class="arrow">→</span>');
-}
 const INTEREST = { hot: ["Hot", "good"], warm: ["Warm", "agent"], low: ["Low", ""], not_interested: ["Not interested", "bad"] };
-function interestedHtml(r) {
-  const people = r.interested || [], c = r.interest_counts || {};
-  const head = `<div class="small"><strong>${r.sent}</strong> sent · <strong>${r.replied}</strong> replied (${pct(r.reply_rate)}) · ${r.no_reply} no reply` +
-    ` · ${Object.entries(INTEREST).map(([k, [label]]) => `${label} ${c[k] || 0}`).join(" · ")}</div>`;
-  if (!people.length) return head;
-  const rows = people.slice(0, 50).map((x) => `<tr><td>${esc(x.name || x.phone || x.email || "")}<div class="tiny muted">${esc(x.phone || x.email || "")}</div></td><td>${pill(...INTEREST[x.interest])}</td><td>${esc(x.reply)}</td><td class="tiny muted">${ago(x.replied_at)}</td></tr>`);
-  return `${head}<div class="scroll-x"><table class="small"><thead><tr><th>Who replied</th><th>Interest</th><th>What they said</th><th>When</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+// Analytics shown when a generated campaign is opened: how many were reached, who replied and how interested they are.
+const DRAFT_STATES = ["pending_approval", "needs_fix", "rejected"];
+const mkt = { tab: "new", picked: null, done: [], cat: "all", recips: {} };
+const sentCount = (c) => c.results ? c.results.sent : (c.stats?.sent || 0);
+const FILTERS = { all: "All sent", replied: "Replied", hot: "Hot", warm: "Warm", low: "Low", not_interested: "Not interested", no_reply: "No reply" };
+const inFilter = (p, f) => f === "all" || (f === "replied" ? p.interest !== "no_reply" : p.interest === f);
+function recipientsHtml(c) {
+  const list = mkt.recips[c.id];
+  if (!list) return `<div class="empty">Loading who it was sent to…</div>`;
+  const ab = new Set(list.map((p) => p.variant)).size > 1;  // the Version column only matters when A and B both went out
+  const rows = list.filter((p) => inFilter(p, mkt.cat)).map((p) => `<tr><td>${esc(p.name || p.phone || p.email || "")}<div class="tiny muted">${esc(p.phone || p.email || "")}</div></td>
+    ${ab ? `<td>${esc(p.variant)}</td>` : ""}<td>${p.interest === "no_reply" ? '<span class="tiny muted">No reply</span>' : pill(...INTEREST[p.interest])}</td><td>${esc(p.reply || "")}</td><td class="tiny muted">${p.replied_at ? ago(p.replied_at) : ""}</td></tr>`);
+  const select = `<select data-filter aria-label="Show" style="width:auto;min-width:0;padding:6px 30px 6px 12px">${Object.entries(FILTERS).map(([k, label]) => `<option value="${k}" ${k === mkt.cat ? "selected" : ""}>${label} (${list.filter((p) => inFilter(p, k)).length})</option>`).join("")}</select>`;
+  return `<div class="panel-head" style="margin:0"><h3 style="margin:0">${FILTERS[mkt.cat]} · ${rows.length}</h3>${select}</div>
+    ${rows.length ? `<div class="scroll-x"><table class="small"><thead><tr><th>Who</th>${ab ? "<th>Version</th>" : ""}<th>Status</th><th>What they said</th><th>When</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>` : `<div class="empty">No one here yet.</div>`}`;
 }
-function resultsHtml(r) {
-  if (!r) return "";
-  const rows = Object.entries(r.variants || {}).map(([k, v]) => `<tr><td>Version ${esc(k)}${r.winner === k ? " " + pill("better", "good") : ""}</td><td class="r">${v.n}</td><td class="r">${v.replied}</td><td class="r">${pct(v.reply_rate)}</td><td class="r">${v.won}</td></tr>`);
-  rows.push(`<tr><td>Holdout (no message)</td><td class="r">${r.holdout.n}</td><td class="r">${r.holdout.replied}</td><td class="r">${pct(r.holdout.reply_rate)}</td><td class="r">${r.holdout.won}</td></tr>`);
-  return `<div class="scroll-x"><table class="small"><thead><tr><th></th><th class="r">Sent</th><th class="r">Replied</th><th class="r">Rate</th><th class="r">Won</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
-    <div class="tiny muted">Lift over holdout ${r.lift_reply_rate == null ? "–" : (r.lift_reply_rate * 100).toFixed(1) + " points"} · revenue ${money(r.revenue)} · ${r.complete ? "final" : `counting for ${r.window_days} days`}</div>${interestedHtml(r)}`;
+// Version A vs B: which wording got more replies. A winner needs enough sends per version to not be luck.
+function abHtml(r) {
+  const v = Object.entries(r?.variants || {});
+  if (v.length < 2) return "";
+  const cell = ([k, x]) => `<div class="stat"><b>${pct(x.reply_rate)}</b><span>Version ${esc(k)} · ${x.replied} of ${x.n} replied ${r.winner === k ? pill("better", "good") : ""}</span></div>`;
+  return `<div><div class="mk-tiles">${v.map(cell).join("")}</div>${r.winner ? "" : `<div class="tiny muted" style="margin-top:6px">No clear winner yet: each version needs about 20 sends before the difference means anything.</div>`}</div>`;
 }
+function analyticsHtml(c) {
+  const r = c.results, st = c.status;
+  if (st === "scheduled") return `<div class="mk-empty">Approved. It sends ${esc(when(c.send_at))}.<span class="tiny">Who it went to, and how interested each person is, appear here after it is sent.</span></div>`;
+  if (st === "failed") return `<div class="mk-empty">Sending failed, so there are no results.<span class="tiny">Check the Distribution agent and the channel settings.</span></div>`;
+  const sent = sentCount(c), replied = r ? r.replied : 0;
+  if (!sent) return `<div class="mk-empty">Nothing has gone out yet.</div>`;
+  const tile = (v, label, f) => `<button type="button" class="stat stat-btn" data-cat="${f}" aria-pressed="${f === mkt.cat}"><b>${v}</b><span>${label}</span></button>`;
+  const kpis = `<div class="mk-tiles">${tile(sent, "Sent", "all")}${tile(replied, `Replied${r ? " · " + pct(r.reply_rate) : ""}`, "replied")}${tile(r ? r.no_reply : sent, "No reply", "no_reply")}</div>`;
+  return `${kpis}${abHtml(r)}${c.channel === "social" ? "" : recipientsHtml(c)}`;
+}
+function campaignDetailHtml(c) {
+  if (!c) return `<div class="empty">Pick a campaign on the left to see how it did.</div>`;
+  return `<div class="stack" style="gap:14px">
+    <div class="panel-head" style="margin:0"><h2>${esc(c.name)}</h2><span class="tiny muted">${c.sent_at ? "Sent " + esc(when(c.sent_at)) : ""}</span></div>
+    ${analyticsHtml(c)}
+    <details><summary>Message and picture</summary><div class="stack" style="margin-top:8px">${variantsHtml(c)}${c.image_url ? `<img class="poster" src="${esc(c.image_url)}" alt="Campaign poster">` : ""}</div></details></div>`;
+}
+function campaignItemHtml(c) {
+  const line = c.status === "scheduled" ? `Sends ${when(c.send_at)}` : c.status === "failed" ? "Not sent" : c.sent_at ? `Sent ${when(c.sent_at)}` : "Not sent yet";
+  return `<button type="button" class="mk-item" data-pick="${c.id}" aria-pressed="${c.id === mkt.picked}">
+    <div class="row" style="justify-content:space-between"><strong>${esc(c.name)}</strong>${pill(nice(c.status), STATUS_TONE[c.status] || "")}</div>
+    <div class="tiny muted">${esc(line)}</div></button>`;
+}
+document.addEventListener("change", (e) => { if (e.target.matches("[data-filter]")) { mkt.cat = e.target.value; showDetail(); } });
+async function showDetail() {
+  const c = mkt.done.find((x) => x.id === mkt.picked);
+  $("#campaignDetail").innerHTML = campaignDetailHtml(c);
+  if (c && !mkt.recips[c.id] && sentCount(c) && c.channel !== "social") {
+    mkt.recips[c.id] = await api(`/v1/campaigns/${c.id}/recipients`);
+    if (mkt.picked === c.id) $("#campaignDetail").innerHTML = campaignDetailHtml(c);
+  }
+}
+function setMktTab(t) {
+  mkt.tab = t;
+  $$("[data-mtab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mtab === t)));
+  $("#mktNew").hidden = t !== "new"; $("#mktDone").hidden = t !== "done";
+}
+document.addEventListener("click", (e) => {
+  const tab = e.target.closest("[data-mtab]"); if (tab) setMktTab(tab.dataset.mtab);
+  const pick = e.target.closest("[data-pick]");
+  if (pick) { mkt.picked = +pick.dataset.pick; $$("[data-pick]").forEach((b) => b.setAttribute("aria-pressed", String(b === pick)));
+    mkt.cat = "all"; showDetail(); }
+  const cat = e.target.closest("[data-cat]");
+  if (cat) { mkt.cat = cat.dataset.cat; showDetail(); }
+  if (e.target.closest("[data-measure]")) $("#measureBtn").click();
+});
 loaders.marketing = async () => {
   const [plays, list, team] = await Promise.all([api("/v1/marketing/recommendations"), api("/v1/campaigns"), api("/v1/team")]);
   const on = Object.fromEntries(team.map((a) => [a.key, a.status !== "off"]));
@@ -1338,12 +1400,20 @@ loaders.marketing = async () => {
   await loadCriteria();
   $("#playList").innerHTML = !on.strategy ? `<div class="empty">The Strategy agent is off. Write your own campaign below, or turn Strategy on in Agents.</div>`
     : plays.map(playHtml).join("") || `<div class="empty">No plays right now: every audience is empty, unconsented or on cooldown.</div>`;
-  $("#campaignList").innerHTML = list.map((c) => `
+  const drafts = list.filter((c) => DRAFT_STATES.includes(c.status));
+  mkt.done = list.filter((c) => !DRAFT_STATES.includes(c.status));
+  if (!mkt.done.some((c) => c.id === mkt.picked)) mkt.picked = mkt.done[0]?.id ?? null;
+  $("#mktDraftN").textContent = drafts.length || ""; $("#mktDoneN").textContent = mkt.done.length || "";
+  $("#draftList").innerHTML = drafts.map((c) => `
     <div class="campaign">
       <div class="row" style="justify-content:space-between"><strong>${esc(c.name)}</strong>${pill(nice(c.status), STATUS_TONE[c.status] || "")}</div>
-      <div class="steps">${steps(c)}</div>
-      <details><summary>Copy, picture, checks and results</summary><div class="stack" style="margin-top:8px">${checksHtml(c.checks)}${variantsHtml(c)}${c.image_url ? `<img class="poster" src="${esc(c.image_url)}" alt="Campaign poster">` : ""}${resultsHtml(c.results)}</div></details>
-    </div>`).join("") || `<div class="empty">No campaigns yet. Draft one of the Strategy agent's plays above.</div>`;
+      <div class="row"><button class="btn human sm" type="button" data-goto="approvals">Review and approve</button></div>
+      <details><summary>Message versions, picture and checks</summary><div class="stack" style="margin-top:8px">${checksHtml(c.checks)}${variantsHtml(c)}${c.image_url ? `<img class="poster" src="${esc(c.image_url)}" alt="Campaign poster">` : ""}</div></details>
+    </div>`).join("") || `<div class="empty">No drafts waiting. Create one above, or draft one of the Strategy agent's plays.</div>`;
+  $("#campaignList").innerHTML = mkt.done.map(campaignItemHtml).join("") || `<div class="empty">No campaigns sent yet. Approve a draft in Needs you and it will appear here.</div>`;
+  mkt.recips = {};  // replies change, so fetch the recipient lists afresh
+  showDetail();
+  setMktTab(mkt.tab);
 };
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-play]");

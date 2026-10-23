@@ -14,6 +14,7 @@ from sqlalchemy import (
     create_engine,
     inspect,
 )
+from sqlalchemy import event
 from sqlalchemy import text as sql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -173,6 +174,11 @@ class Campaign(Base):
 
 
 engine = create_engine(DATABASE_URL)
+if engine.dialect.name == "sqlite":
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(conn, _):  # WAL: readers never block the writer; busy_timeout: wait for a lock instead of "database is locked"
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
 Session = sessionmaker(engine, expire_on_commit=False)
 
 

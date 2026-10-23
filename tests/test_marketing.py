@@ -94,6 +94,8 @@ def test_full_chain_with_feedback_loop(s, tenant, customers, llm_stub):
     assert set(r["variants"]) == {"A", "B"}
     # who replied, ranked by interest: the buyer first, everyone else a warm lead with their words attached
     assert r["no_reply"] == 27 and len(r["interested"]) == 9
+    people = attribution.recipients(s, tenant, campaign)  # everyone sent to: repliers first, then "no_reply"
+    assert len(people) == r["sent"] and sum(p["interest"] == "no_reply" for p in people) == 27 and people[-1]["interest"] == "no_reply"
     top = r["interested"][0]
     assert top["contact_id"] == repliers[0].id and top["interest"] == "hot" and top["reply"].startswith("yes, tell me")
     assert sum(r["interest_counts"].values()) == 9 and r["interest_counts"]["hot"] >= 1
