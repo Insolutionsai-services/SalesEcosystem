@@ -17,10 +17,9 @@ PRESETS = {
     # Free tier (Sept 2026 picks): 50 requests/day, 1,000/day after buying $10 credits; free providers may train on
     # prompts, so use it for pilots, not real customer data. Fallbacks kick in on rate limits and downtime.
     "openrouter": {"base_url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY",
-                   "model": "qwen/qwen3.8-27b:free", "model_lite": "google/gemma-4-26b-a4b-it:free",
+                   "model": "qwen/qwen3.8-27b:free", "model_lite": "qwen/qwen3.8-27b:free",
                    # free pools are often congested; this order was checked live on 30 Sep 2026
-                   "fallbacks": ["qwen/qwen3.8-27b:free", "google/gemma-4-26b-a4b-it:free", "google/gemma-4-31b-it:free",
-                                 "nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
+                   "fallbacks": ["qwen/qwen3.8-27b:free", "nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
                    "free_only": True,  # refuse any non-':free' model id; OPENROUTER_ALLOW_PAID=1 lifts it
                    "extra_body": {"reasoning": {"effort": "low", "exclude": True},  # Qwen3.8 defaults to xhigh reasoning
                                   "provider": {"max_price": {"prompt": 0, "completion": 0}}}},  # never route to a paid endpoint

@@ -105,6 +105,47 @@ def deliver(tenant: Tenant, contact: Contact, text: str, image: str | None = Non
     return "console"
 
 
+def send_document(s, tenant: Tenant, contact: Contact, text: str, pdf: bytes, filename: str, **meta) -> bool:
+    """A transactional PDF (receipt) on the customer's channel, with no marketing checks. Console channel only logs it."""
+    channel = pick(tenant, contact)
+    try:
+        if channel == "whatsapp":
+            r = httpx.post(f"https://graph.facebook.com/{WA_API_VERSION}/{tenant.wa_phone_id}/media",
+                           headers={"Authorization": f"Bearer {tenant.wa_token}"},
+                           data={"messaging_product": "whatsapp", "type": "application/pdf"},
+                           files={"file": (filename, pdf, "application/pdf")}, timeout=60)
+            r.raise_for_status()
+            doc = {"id": r.json()["id"], "filename": filename}
+            if compliance.in_service_window(contact, now()):
+                body = {"type": "document", "document": {**doc, "caption": whatsapp_format(text)[:CAPTION_LIMIT]}}
+            else:  # outside the 24h window: an approved template with a document header
+                template = setting(tenant, "whatsapp_receipt_template") or {}
+                if not template.get("name"):
+                    raise RuntimeError("outside 24h window: set playbook.whatsapp_receipt_template {name, language}")
+                body = {"type": "template", "template": {"name": template["name"], "language": {"code": template.get("language", "en")}, "components": [
+                    {"type": "header", "parameters": [{"type": "document", "document": doc}]},
+                    {"type": "body", "parameters": [{"type": "text", "text": whatsapp_format(text)}]}]}}
+            httpx.post(f"https://graph.facebook.com/{WA_API_VERSION}/{tenant.wa_phone_id}/messages",
+                       headers={"Authorization": f"Bearer {tenant.wa_token}"},
+                       json={"messaging_product": "whatsapp", "to": contact.phone, **body}, timeout=20).raise_for_status()
+        elif channel == "email":
+            msg = EmailMessage()
+            msg["From"], msg["To"], msg["Subject"] = os.environ["SMTP_FROM"], contact.email, f"{tenant.name}: {filename}"
+            msg.set_content(plain_text(text))
+            msg.add_attachment(pdf, maintype="application", subtype="pdf", filename=filename)
+            with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.getenv("SMTP_PORT", "587"))) as smtp:
+                smtp.starttls()
+                smtp.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
+                smtp.send_message(msg)
+        else:
+            log.info("[console -> %s] [document %s, %d bytes] %s", contact.phone or contact.email, filename, len(pdf), text)
+    except DELIVERY_ERRORS as e:
+        log_activity(s, tenant.id, contact.id, "failed", body=text, kind="receipt", error=str(e), **meta)
+        return False
+    log_activity(s, tenant.id, contact.id, "msg_out", body=text, channel=channel, kind="receipt", via="system", document=filename, **meta)
+    return True
+
+
 def send(s, tenant: Tenant, contact: Contact, text: str, kind: str, via: str | None = None, image: str | None = None,
          **meta) -> bool:
     """kind: reply | followup | marketing (see compliance.check); via: fastpath | llm | human | campaign.

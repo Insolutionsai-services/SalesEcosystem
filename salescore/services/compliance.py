@@ -43,7 +43,7 @@ def in_service_window(contact: Contact, at: datetime) -> bool:
 def proactive_sent_since(s, contact_id: int, since: datetime) -> int:
     return s.scalar(select(func.count()).select_from(Activity).where(
         Activity.contact_id == contact_id, Activity.type == "msg_out",
-        Activity.data["kind"].as_string() != "reply", Activity.at >= since))
+        Activity.data["kind"].as_string().notin_(("reply", "receipt")), Activity.at >= since))
 
 
 def check(s, tenant: Tenant, contact: Contact, kind: str, at: datetime) -> str | None:

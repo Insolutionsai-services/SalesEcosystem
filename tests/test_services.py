@@ -96,3 +96,12 @@ def test_message_formatting_and_voice_rules():
     assert plain_text("Our **premium** paint, *10L*") == "Our premium paint, 10L"
     rules = system_prompt("reply", "{}")
     assert "premium" in rules and "Never compare with other brands" in rules and "*bold* with single asterisks" in rules
+
+
+def test_winning_an_order_reduces_stock_once(s, tenant):
+    from salescore.services.catalog import get_items
+    c = contacts.find_or_create_contact(s, tenant, phone="9876500009")
+    q = quotes.create_quote(s, tenant, c, [{"sku": "PNT-WE-10", "qty": 3}])
+    quotes.close_quote(s, tenant, q, "won")
+    quotes.close_quote(s, tenant, q, "won")  # a repeat click must not take the stock down twice
+    assert get_items(s, tenant.id, ["PNT-WE-10"])["PNT-WE-10"].stock == 47

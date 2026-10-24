@@ -14,6 +14,10 @@ from .tasks import add_task
 PAID_SLACK = 0.5  # rupee rounding: an order within this of its total counts as paid
 
 
+def is_paid(quote: Quote) -> bool:
+    return (quote.paid_amount or 0) >= quote.total - PAID_SLACK
+
+
 def _line(sku: str, name: str, qty: float, unit_price: float) -> dict:
     return {"sku": sku, "name": name, "qty": qty, "unit_price": unit_price, "amount": round(unit_price * qty, 2)}
 
@@ -77,6 +81,10 @@ def close_quote(s, tenant: Tenant, quote: Quote, status: str, reason: str = "") 
     """Sales team records the outcome; won/lost labels are what lead scoring learns from."""
     if status not in ("won", "lost"):
         raise ValueError("status must be won or lost")
+    if status == "won" and quote.status != "won":  # the goods are sold: stock-tracked items go down by what was ordered
+        for sku, item in get_items(s, tenant.id, [ln["sku"] for ln in quote.lines]).items():
+            if item.stock is not None:
+                item.stock = max(0, item.stock - sum(ln["qty"] for ln in quote.lines if ln["sku"] == sku))
     quote.status, quote.note = status, "; ".join(filter(None, [quote.note, reason])) or None
     quote.closed_at = now()
     contact = s.get(Contact, quote.contact_id)

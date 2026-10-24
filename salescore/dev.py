@@ -24,7 +24,7 @@ from .core.models import (
     init_db,
 )
 from .core.playbook import setting
-from .core.utils import now
+from .core.utils import now, parse_csv
 from .services.catalog import import_catalog
 from .services.contacts import import_contacts
 from .services.quotes import _line as quote_line
@@ -61,6 +61,18 @@ DEMO_LEADS = ["Arun", "Bhavya", "Charan", "Deepa", "Elango", "Farah", "Gokul", "
               "Zaheer", "Anitha", "Bala", "Divya", "Ganesh", "Kavya"]
 DEMO_ASKS = ["price of white emulsion 20L?", "need waterproofing for terrace", "do you deliver to Velachery?",
              "quote for 10 tins exterior paint", "which putty for new walls?", "is the primer in stock?"]
+
+
+def _demo_company(s, tenant: Tenant) -> None:
+    """Older demo databases: add the seller details and HSN codes that receipts print."""
+    if "company" in tenant.playbook:
+        return
+    tenant.playbook = {**tenant.playbook, "company": json.loads(_demo("playbook.json"))["company"]}
+    hsn = {r["sku"]: r["hsn"] for r in parse_csv(_demo("catalog.csv"))}
+    for item in s.scalars(select(Item).where(Item.tenant_id == tenant.id)):
+        if item.sku in hsn:
+            item.attrs = {**item.attrs, "hsn": hsn[item.sku]}
+    s.commit()
 
 
 def _demo_recent(s, tenant: Tenant) -> None:
@@ -128,6 +140,7 @@ def seed_demo() -> Tenant:
             analyse(s, tenant)  # RFM segments + lead scores, so Strategy has audiences from the start
             s.commit()
         _demo_users(s, tenant)
+        _demo_company(s, tenant)
         _demo_recent(s, tenant)
         return tenant
 
