@@ -19,7 +19,7 @@ LLM_PRICE_OUT_PER_M = float(os.getenv("LLM_PRICE_OUT_PER_M", "0"))  # USD per 1M
 # Extra JSON merged into every request, e.g. turn off Qwen thinking on vLLM/SGLang:
 # LLM_EXTRA_BODY={"chat_template_kwargs": {"enable_thinking": false}}
 LLM_EXTRA_BODY = json.loads(os.getenv("LLM_EXTRA_BODY") or "{}")
-# Comma-separated fallback models, tried in order on rate limits/outages, e.g. "qwen/qwen3.8-27b:free,google/gemma-4-26b-a4b-it:free"
+# Comma-separated fallback models, tried in order on rate limits/outages, e.g. "qwen/qwen3.8-27b:free,nvidia/nemotron-3-super-120b-a12b:free"
 LLM_FALLBACK_MODELS = [m.strip() for m in os.getenv("LLM_FALLBACK_MODELS", "").split(",") if m.strip()]
 AGENT_MAX_TURNS = int(os.getenv("SALES_AGENT_MAX_TURNS", "6"))
 

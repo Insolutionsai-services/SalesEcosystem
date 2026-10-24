@@ -102,3 +102,21 @@ def test_daily_tick_runs_analyst(s, tenant, llm_stub):
     out = scheduler.tick(s, tenant, daily=True)
     s.commit()  # metrics must be JSON-serialisable into the activity log
     assert out["insights"].startswith("- Call") and out["metrics"]["contacts_by_stage"] == {"new": 1}
+
+
+def test_photo_order_replies_with_a_quote_and_a_yes_places_the_order(s, tenant, llm_stub):
+    from io import BytesIO
+
+    from PIL import Image
+
+    from salescore.core.models import Quote
+    from salescore.services import contacts as cts
+    from salescore.workflows import inbound, photo_order
+    c = cts.find_or_create_contact(s, tenant, phone="9876500003")
+    buf = BytesIO()
+    Image.new("RGB", (4, 4)).save(buf, "PNG")
+    reply = photo_order.handle_photo(s, tenant, c, "x.png", buf.getvalue())
+    quote = s.scalars(select(Quote).where(Quote.contact_id == c.id)).one()
+    assert "White Emulsion Paint 10L" in reply and "Reply YES" in reply and quote.note.startswith("photo order")
+    inbound.handle_inbound(s, tenant, "yes", phone="9876500003")  # no LLM turn is scripted: the confirmation is local
+    assert quote.status == "won"

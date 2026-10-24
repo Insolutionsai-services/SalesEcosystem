@@ -89,7 +89,7 @@ def test_provider_presets(monkeypatch):
     ok = httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
     monkeypatch.setattr(llm.httpx, "post", lambda url, **kw: sent.append(kw["json"]) or (busy if len(sent) <= 2 else ok))
     assert llm.chat([{"role": "user", "content": "hi"}], lite=True).text == "ok"
-    assert [b["model"] for b in sent] == ["google/gemma-4-26b-a4b-it:free"] * 2 + ["qwen/qwen3.8-27b:free"]  # fell back
+    assert [b["model"] for b in sent] == ["qwen/qwen3.8-27b:free"] * 2 + ["nvidia/nemotron-3-super-120b-a12b:free"]  # fell back
     assert all(b["model"].endswith(":free") for b in sent)
     assert sent[0]["reasoning"] == {"effort": "low", "exclude": True}
     assert sent[0]["provider"] == {"max_price": {"prompt": 0, "completion": 0}}

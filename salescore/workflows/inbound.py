@@ -8,6 +8,7 @@ from ..core.utils import now
 from ..services import channels, compliance, contacts
 from ..services.activity import log_activity, seen_external_id
 from ..services.tasks import close_open_tasks, has_open_task
+from . import photo_order
 from .followups import schedule_followup
 
 
@@ -38,7 +39,10 @@ def handle_inbound(s, tenant: Tenant, text: str, phone=None, email=None, name=No
             contacts.handoff(s, tenant, contact, "Response agent is off: please reply", pause_bot=False)
         return None
 
-    reply, via = answer(s, tenant, contact, text)
+    if confirmed := photo_order.confirm(s, tenant, contact, text):
+        reply, via = confirmed, "fastpath"
+    else:
+        reply, via = answer(s, tenant, contact, text)
     if channels.send(s, tenant, contact, reply, "reply", via) and not contact.bot_paused:
         schedule_followup(s, tenant, contact, step=0)
         if via != "fallback":  # the AI answered again, so its "AI unavailable / agent off" hand-offs are resolved

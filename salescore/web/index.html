@@ -303,6 +303,11 @@
   .bubble.in { background: var(--surface); align-self: flex-start; border-bottom-left-radius: 5px; box-shadow: var(--shadow); }
   .bubble.out { background: var(--bubble-out); color: var(--on-bubble-out); align-self: flex-end; border-bottom-right-radius: 5px; }
   .bubble.out.person { background: var(--human); color: var(--on-human); }
+  .attach-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; min-width: 160px; padding: 6px; background: var(--surface); border: 1px solid var(--line, #d7ddd9); border-radius: 12px; box-shadow: var(--shadow); display: grid; gap: 2px; }
+  .attach-menu[hidden] { display: none; }
+  .attach-menu button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; font: inherit; color: inherit; cursor: pointer; }
+  .attach-menu button:hover { background: var(--wash, rgba(10,122,106,.1)); }
+  .bubble .attach { display: block; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.18); color: inherit; font-weight: 600; text-decoration: underline; }
   .bubble .meta { font-size: .7rem; opacity: .78; margin-top: 4px; }
   .sys { align-self: center; font-size: .74rem; color: var(--muted); background: var(--surface); padding: 3px 11px; border-radius: 999px; text-align: center; }
   .sys.bad { color: var(--bad); background: var(--bad-soft); }
@@ -1059,7 +1064,7 @@ loaders.home = async () => {
   $("#homeTasks").innerHTML = top.length ? await tasksHtml(top) : `<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Nothing needs you right now. The team is handling it.</div>`;
   $("#homePlays").innerHTML = plays.slice(0, 2).map(playHtml).join("") || `<div class="empty">No plays right now: every audience is empty, unconsented or on cooldown.</div>`;
 };
-$("#tickBtn").onclick = (e) => busy(e.target, async () => { const r = await api("/v1/tick", { method: "POST" }); toast(`${r.tasks_run} due tasks run, ${r.messages_sent} messages sent`); loaders.home(); });
+$("#tickBtn").onclick = (e) => busy(e.target, async () => { const r = await api("/v1/tick", { method: "POST" }); toast(`${r.tasks_run} due tasks run, ${r.messages_sent} messages sent${r.receipts ? `, ${r.receipts} receipt${r.receipts === 1 ? "" : "s"} sent` : ""}`); loaders.home(); });
 $("#dailyBtn").onclick = (e) => busy(e.target, async () => { const r = await api("/v1/tick?daily=true", { method: "POST" }); $("#insights").textContent = r.insights || "No notes returned."; loaders.home(); });
 
 // ---------- needs you (tasks & approvals) ----------
@@ -1137,11 +1142,12 @@ $("#contactFilter").oninput = renderContactList;
 const isMessage = (ev) => ev.type === "msg_in" || ev.type === "msg_out";
 function eventHtml(ev) {
   const d = ev.data || {};
-  if (ev.type === "msg_in") return `<div class="bubble in">${fmt(ev.body)}<div class="meta">Customer · ${ago(ev.at)}</div></div>`;
+  if (ev.type === "msg_in") return `<div class="bubble in">${d.image ? `<img class="poster" src="/media/${esc(d.image)}" alt="Photo from the customer" style="max-width:220px;display:block;margin-bottom:6px">` : ""}${fmt(ev.body)}<div class="meta">Customer · ${ago(ev.at)}</div></div>`;
   if (ev.type === "msg_out") {
-    const by = d.via === "fastpath" ? "Response agent · instant" : d.via === "llm" ? "Response agent" : d.via === "campaign" ? `Campaign · version ${d.variant}` : d.via === "human" ? "You" : "Agent";
+    const by = d.via === "fastpath" ? "Response agent · instant" : d.via === "llm" ? "Response agent" : d.via === "photo" ? "Response agent · read the photo" : d.via === "campaign" ? `Campaign · version ${d.variant}` : d.via === "human" ? "You" : "Agent";
     const pic = d.image ? `<img class="poster" src="/media/${esc(d.image)}" alt="Poster sent" style="max-width:220px;display:block;margin-bottom:6px">` : "";
-    return `<div class="bubble out ${d.via === "human" ? "person" : ""}">${pic}${fmt(ev.body)}<div class="meta">${esc(by)} · ${ago(ev.at)}</div></div>`;
+    const doc = d.document ? `<a class="attach" href="/v1/quotes/${esc(d.quote_id)}/receipt" download="${esc(d.document)}">${esc(d.document)} · Download PDF</a>` : "";
+    return `<div class="bubble out ${d.via === "human" ? "person" : ""}">${pic}${fmt(ev.body)}${doc}<div class="meta">${esc(by)} · ${ago(ev.at)}</div></div>`;
   }
   if (ev.type === "blocked") return `<div class="sys bad">Verification stopped a ${esc(d.kind)} message: ${esc(d.reason)}</div>`;
   if (ev.type === "failed") return `<div class="sys bad">Delivery failed: ${esc(d.error)}</div>`;
@@ -1164,7 +1170,10 @@ async function openContact(id) {
     ${events.some((e) => !isMessage(e)) ? `<details class="logs"><summary class="tiny muted">Logs</summary>${events.filter((e) => !isMessage(e)).map((e) => `<div class="tiny muted">${ago(e.at)}</div>${eventHtml(e)}`).join("")}</details>` : ""}
     <div class="reply-grid">
       <div><label for="custMsg">Customer says</label><textarea id="custMsg" rows="2" placeholder="Next message from the customer"></textarea>
-        <button class="btn human" id="custSend" style="margin-top:8px">Send as customer</button></div>
+        <div class="row" style="margin-top:8px"><div style="position:relative"><button class="btn" id="custPlus" title="Send a photo as the customer" aria-label="Send a photo as the customer" aria-haspopup="true" style="font-size:1.1rem;line-height:1;padding:6px 14px">+</button>
+            <div class="attach-menu" id="custMenu" role="menu" hidden><button type="button" role="menuitem" data-pick="custFile">Choose a file</button><button type="button" role="menuitem" data-pick="custCam">Take a photo</button></div>
+            <input type="file" id="custFile" accept="image/png,image/jpeg,image/webp" hidden><input type="file" id="custCam" accept="image/*" capture="environment" hidden></div>
+          <button class="btn human" id="custSend">Send as customer</button></div></div>
       <div><label for="repMsg">Reply as a salesperson</label><textarea id="repMsg" rows="2" placeholder="Your reply"></textarea>
         <div class="row" style="margin-top:8px"><button class="btn" id="repSend">Send reply</button>
           <label class="row tiny" for="repResume" style="margin:0"><input type="checkbox" id="repResume" style="width:auto" ${c.bot_paused ? "checked" : ""}> hand back to the agents</label></div></div>
@@ -1175,6 +1184,16 @@ async function openContact(id) {
     await api("/v1/inbound", { method: "POST", body: { text, phone: c.phone, email: c.phone ? null : c.email, channel: "ui" } });
     await loadContacts(); await openContact(id);
   });
+  $("#custPlus").onclick = (e) => { e.stopPropagation(); $("#custMenu").hidden = !$("#custMenu").hidden; };
+  $("#custMenu").onclick = (e) => { const b = e.target.closest("[data-pick]"); if (b) { $("#custMenu").hidden = true; $("#" + b.dataset.pick).click(); } };
+  document.onclick = () => { const m = $("#custMenu"); if (m) m.hidden = true; };
+  const sendPhoto = (e) => busy($("#custPlus"), async () => {
+    const file = e.target.files[0]; if (!file) return;
+    await api(`/v1/contacts/${id}/photo`, { method: "POST", file });
+    toast("Photo sent. The agent read it and replied with a quote to confirm.");
+    await loadContacts(); await openContact(id); refreshNeeds();
+  });
+  $("#custFile").onchange = sendPhoto; $("#custCam").onchange = sendPhoto;
   $("#repSend").onclick = (e) => busy(e.target, async () => {
     const text = $("#repMsg").value.trim(); if (!text) return;
     const r = await api(`/v1/contacts/${id}/reply`, { method: "POST", body: { text, resume_bot: $("#repResume").checked } });
@@ -1448,7 +1467,8 @@ loaders.quotes = async () => {
       <td class="small">${q.lines.map((l) => `${esc(l.name)} × ${esc(l.qty)}`).join("<br>")}</td>
       <td class="r">${money(q.total)}</td><td>${pill(nice(q.status), STATUS_TONE[q.status] || "")}</td><td>${payCell(q)}</td><td class="small">${when(q.created_at)}</td>
       <td>${["sent", "expired"].includes(q.status) ? `<div class="row"><button class="btn" data-close="won" data-id="${q.id}">Won</button><button class="btn danger" data-close="lost" data-id="${q.id}">Lost</button></div>`
-        : q.status === "won" && due(q) > 0 ? `<button class="btn sm" data-pay="${q.id}" data-due="${due(q)}">Record payment</button>` : ""}</td>
+        : q.status === "won" && due(q) > 0 ? `<button class="btn sm" data-pay="${q.id}" data-due="${due(q)}">Record payment</button>`
+        : q.status === "won" ? `<a class="btn sm" href="/v1/quotes/${q.id}/receipt" download="receipt-${q.id}.pdf">Receipt PDF</a>` : ""}</td>
     </tr>`).join("") || `<tr><td colspan="8" class="empty">No quotes yet</td></tr>`;
 };
 const due = (q) => Math.max(0, Math.round((q.total - (q.paid_amount || 0)) * 100) / 100);
@@ -1464,7 +1484,7 @@ $("#quoteRows").addEventListener("submit", (e) => {
   e.preventDefault();
   busy(f.querySelector("button"), async () => {
     await api(`/v1/quotes/${f.dataset.payForm}/payment`, { method: "POST", body: { amount: Number(f.querySelector("input").value) } });
-    toast("Payment recorded."); loaders.quotes();
+    toast("Payment recorded. Fully paid orders get their receipt PDF sent to the customer."); loaders.quotes();
   });
 });
 $("#quoteRows").addEventListener("click", (e) => {

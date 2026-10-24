@@ -27,6 +27,9 @@ DEFAULTS = {
     "brand": {"primary": "#0a7a6a", "accent": "#f2a443", "contact": ""},  # poster colours and contact line
     "tone": "", "languages": ["en"], "qualify": [], "handoff_rules": [],
     "whatsapp_template": None,       # {"name": ..., "language": "en"} for sends outside the 24h window
+    "whatsapp_receipt_template": None,  # same, with a DOCUMENT header, for receipts sent outside the 24h window
+    # printed on receipts: name, tagline, address, owner, phone, email, gstin, pan, state, state_code
+    "company": {},
     "email_subject": None,
     "opt_out_footer": "Reply STOP to opt out.",
     "opt_out_reply": "You're unsubscribed. Reply START any time to hear from us again.",

@@ -5,6 +5,18 @@
     "en",
     "ta"
   ],
+  "company": {
+    "name": "DEMO PAINTS & CO",
+    "tagline": "PAINTS & WATERPROOFING MATERIALS",
+    "address": "12/A, MAIN ROAD, CHENNAI - 600001,",
+    "owner": "A. DEMO KUMAR",
+    "phone": "9000000001, 9000000002",
+    "email": "demo@example.com",
+    "gstin": "33AAAAA0000A1Z5",
+    "pan": "AAAAA0000A",
+    "state": "Tamil Nadu",
+    "state_code": "33"
+  },
   "currency": "INR",
   "channel": "auto",
   "stages": [

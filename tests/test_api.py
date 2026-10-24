@@ -73,3 +73,20 @@ def test_auto_channel_prefers_whatsapp_then_email(monkeypatch):
     t.wa_phone_id, t.wa_token = "1", "tok"
     assert channels.pick(t, both) == "whatsapp" and channels.pick(t, mail_only) == "email"
     assert channels.pick(t, both, "console") == "console"
+
+
+def test_receipt_is_sent_once_the_order_is_fully_paid(client, s, tenant):
+    from sqlalchemy import select
+
+    from salescore.core.models import Activity
+    from salescore.services import contacts, quotes
+    q = quotes.create_quote(s, tenant, contacts.find_or_create_contact(s, tenant, phone="9876500001"), [{"sku": "PNT-WE-10", "qty": 2}])
+    quotes.close_quote(s, tenant, q, "won")
+    s.commit()
+    h, pay = {"X-API-Key": tenant.api_key}, f"/v1/quotes/{q.id}/payment"
+    receipts = lambda: s.scalars(select(Activity).where(Activity.data["kind"].as_string() == "receipt")).all()  # noqa: E731
+    client.post(pay, json={"amount": 1000}, headers=h)
+    assert not receipts()
+    client.post(pay, json={"amount": q.total - 1000}, headers=h)
+    assert len(receipts()) == 1
+    assert client.get(f"/v1/quotes/{q.id}/receipt", headers=h).content.startswith(b"%PDF")

@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 
 from ..ai import llm
@@ -15,9 +15,9 @@ from ..core.config import PUBLIC_BASE_URL
 from ..core.models import Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone
-from ..marketing import attribution, audience, orchestrator, strategy
-from ..services import activity, catalog, channels, contacts, quotes, tasks, users
-from ..workflows import approvals, copilot, followups, inbound, scheduler
+from ..marketing import attribution, audience, orchestrator, poster, strategy
+from ..services import activity, catalog, channels, contacts, quotes, receipt, tasks, users
+from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
 from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
 
@@ -203,6 +203,15 @@ def human_reply(contact_id: int, body: schemas.HumanReply, t: Tenant = Depends(t
     return {"sent": sent}
 
 
+@router.post("/contacts/{contact_id}/photo")
+async def contact_photo(contact_id: int, request: Request, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Body: a picture the customer sent (PNG, JPEG or WebP, up to 5 MB). The agent reads it and replies with a quote to confirm."""
+    data = await request.body()
+    with transaction(s):
+        reply = photo_order.handle_photo(s, t, owned(s, Contact, contact_id, t), poster.save_upload(data), data)
+    return {"reply": reply}
+
+
 @router.post("/quotes/{quote_id}/close")
 def close_quote(quote_id: int, body: schemas.CloseQuote, t: Tenant = Depends(tenant_of), s=Depends(db)):
     with transaction(s):
@@ -214,7 +223,18 @@ def close_quote(quote_id: int, body: schemas.CloseQuote, t: Tenant = Depends(ten
 def quote_payment(quote_id: int, body: schemas.Payment, t: Tenant = Depends(tenant_of), s=Depends(db)):
     with transaction(s):
         q = quotes.record_payment(s, t, owned(s, Quote, quote_id, t), body.amount)
+        if quotes.is_paid(q):  # fully paid: the receipt goes to the customer
+            receipt.send(s, t, q)
     return schemas.quote_out(q)
+
+
+@router.get("/quotes/{quote_id}/receipt")
+def quote_receipt(quote_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    q = owned(s, Quote, quote_id, t)
+    if q.status != "won":
+        raise HTTPException(409, "receipts are for won orders")
+    return Response(receipt.render(s, t, q), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="receipt-{q.id}.pdf"'})
 
 
 @router.get("/analytics")
