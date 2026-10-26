@@ -5,7 +5,9 @@ from ..marketing import orchestrator
 from ..services import channels, contacts, quotes
 
 
-def _decide_quote(s, tenant: Tenant, task: Task, approve: bool, text: str | None, send_now: bool) -> dict:
+def _decide_quote(s, tenant: Tenant, task: Task, approve: bool, text: str | None, send_now: bool, send_at: str | None) -> dict:
+    if send_at:
+        raise ValueError("a send time only applies to campaigns")
     quote, contact = s.get(Quote, task.data["quote_id"]), s.get(Contact, task.contact_id)
     if not approve:
         quote.status = "rejected"
@@ -16,16 +18,16 @@ def _decide_quote(s, tenant: Tenant, task: Task, approve: bool, text: str | None
     return {"quote": quote.id, "status": quote.status}
 
 
-def _decide_campaign(s, tenant: Tenant, task: Task, approve: bool, text: str | None, send_now: bool) -> dict:
+def _decide_campaign(s, tenant: Tenant, task: Task, approve: bool, text: str | None, send_now: bool, send_at: str | None) -> dict:
     campaign = s.get(Campaign, task.data["campaign_id"])
-    return orchestrator.approve(s, tenant, campaign, text, send_now) if approve else orchestrator.reject(campaign)
+    return orchestrator.approve(s, tenant, campaign, text, send_now, send_at) if approve else orchestrator.reject(campaign)
 
 
 def decide(s, tenant: Tenant, task: Task, approve: bool, text: str | None = None, send_now: bool = False,
-           by: str | None = None) -> dict:
-    """text optionally replaces the drafted message; send_now skips the Strategy agent's planned send time."""
+           by: str | None = None, send_at: str | None = None) -> dict:
+    """text optionally replaces the drafted message; send_now skips the planned send time; send_at picks another one."""
     if task.tenant_id != tenant.id or task.kind != "approval" or task.status != "open":
         raise ValueError("not an open approval for this tenant")
     task.status, task.data = "done", {**task.data, "approved": approve, **({"by": by} if by else {})}
     handler = _decide_quote if "quote_id" in task.data else _decide_campaign
-    return handler(s, tenant, task, approve, text, send_now)
+    return handler(s, tenant, task, approve, text, send_now, send_at)

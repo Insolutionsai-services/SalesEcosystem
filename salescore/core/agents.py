@@ -1,6 +1,7 @@
 """Which agents run for a company, and the settings each one exposes in the UI.
 Settings live in the playbook; this module only describes them (labels, types, limits) and validates edits."""
 import copy
+from datetime import datetime
 
 from .playbook import setting
 
@@ -62,6 +63,8 @@ FIELDS = {
         _f("whatsapp_template.name", "WhatsApp template name", "text", "Meta-approved template for sends after 24 hours"),
         _f("whatsapp_template.language", "WhatsApp template language", "text", "e.g. en"),
         _f("whatsapp_template.image", "Template has an image header", "bool", "Turn on if the approved template shows a picture on top; posters go there"),
+        _f("distribution.send_time", "Send campaigns at (time of day)", "time",
+           "Used when you approve a campaign for its planned time. Empty = the Strategy agent picks the best hour. Quiet hours still apply"),
         _f("distribution.webhook_url", "Social / ads webhook URL", "text", "Postiz, Zapier, Make or n8n"),
     ],
     "response": [
@@ -132,6 +135,11 @@ def _coerce(field: dict, value):
             if any(d < 0 for d in out):
                 raise ValueError
             return out
+        if t == "time":
+            v = str(value or "").strip()
+            if v:
+                datetime.strptime(v, "%H:%M")  # ValueError when it isn't a real time
+            return v or None
         if t == "hours":
             start, end = (int(x) for x in value)
             if not (0 <= start <= 23 and 0 <= end <= 23):

@@ -90,3 +90,14 @@ def test_receipt_is_sent_once_the_order_is_fully_paid(client, s, tenant):
     client.post(pay, json={"amount": q.total - 1000}, headers=h)
     assert len(receipts()) == 1
     assert client.get(f"/v1/quotes/{q.id}/receipt", headers=h).content.startswith(b"%PDF")
+
+
+def test_add_and_bulk_delete_catalog_items(client, tenant):
+    h = {"X-API-Key": tenant.api_key}
+    r = client.post("/v1/catalog", json={"sku": "NEW-1", "name": "New Item", "price": 99, "stock": 5, "hsn": "3209"}, headers=h)
+    assert r.status_code == 200 and r.json()["stock"] == 5 and r.json()["hsn"] == "3209"
+    assert client.post("/v1/catalog", json={"sku": "NEW-1", "name": "Again", "price": 1}, headers=h).status_code == 422  # duplicate sku
+    assert client.get("/v1/catalog/NEW-1/history", headers=h).json()[0]["body"] == "Item added"
+    r = client.post("/v1/catalog/delete", json={"skus": ["NEW-1", "PVC-EL-2", "nope"]}, headers=h)
+    assert r.json() == {"deleted": 2}
+    assert {i["sku"] for i in client.get("/v1/catalog", headers=h).json()}.isdisjoint({"NEW-1", "PVC-EL-2"})

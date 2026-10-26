@@ -105,3 +105,21 @@ def test_winning_an_order_reduces_stock_once(s, tenant):
     quotes.close_quote(s, tenant, q, "won")
     quotes.close_quote(s, tenant, q, "won")  # a repeat click must not take the stock down twice
     assert get_items(s, tenant.id, ["PNT-WE-10"])["PNT-WE-10"].stock == 47
+
+
+def test_stock_changes_are_logged_and_items_can_be_deleted(s, tenant):
+    from sqlalchemy import select
+
+    from salescore.core.models import Activity
+    from salescore.services import catalog
+    item = catalog.get_items(s, tenant.id, ["PNT-WE-10"])["PNT-WE-10"]
+    catalog.change_stock(s, tenant, item, 40, "Recount", "ravi@demo.in")
+    catalog.delete_item(s, tenant, item, "ravi@demo.in")
+    s.flush()
+    log = s.scalars(select(Activity).where(Activity.type == "stock").order_by(Activity.id)).all()
+    assert log[0].body == "Item added (catalog import)"  # the fixture's import is in the log too
+    assert [(a.data["before"], a.data["after"]) for a in log[-2:]] == [(50, 40), (40, None)] and log[-2].body == "Recount"
+    catalog.change_stock(s, tenant, catalog.add_item(s, tenant, "X-1", "X", 1, 5), 5, "no change")  # same number: nothing to log
+    s.flush()
+    assert len(s.scalars(select(Activity).where(Activity.type == "stock")).all()) == len(log) + 1  # only the add
+    assert "PNT-WE-10" not in catalog.get_items(s, tenant.id, ["PNT-WE-10"])

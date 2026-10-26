@@ -1,5 +1,7 @@
 """Request bodies and response shapes."""
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, Field, StringConstraints
 
 from ..core.models import Activity, Campaign, Contact, Quote, Task, User
 
@@ -16,6 +18,27 @@ class NewTenant(BaseModel):
 
 class Payment(BaseModel):
     amount: float
+
+
+Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class NewItem(BaseModel):
+    sku: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+    price: float = Field(ge=0)
+    stock: float | None = Field(None, ge=0)
+    description: str | None = None
+    hsn: Annotated[str, StringConstraints(strip_whitespace=True)] | None = None
+
+
+class DeleteItems(BaseModel):
+    skus: list[Text] = Field(min_length=1)
+
+
+class StockChange(BaseModel):
+    stock: float | None = Field(None, ge=0)  # None = stop tracking stock for this item
+    reason: Annotated[str, StringConstraints(strip_whitespace=True)] = ""
 
 
 class Login(BaseModel):
@@ -61,6 +84,7 @@ class Decision(BaseModel):
     approve: bool
     text: str | None = None  # optional edited message that replaces the draft
     send_now: bool = False   # campaigns: ignore the planned send time
+    send_at: str | None = None  # campaigns: send at this company-local time instead, "YYYY-MM-DDTHH:MM"
 
 
 class HumanReply(BaseModel):

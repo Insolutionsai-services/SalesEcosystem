@@ -9,7 +9,8 @@ from sqlalchemy import select
 from ..core import agents
 from ..core.models import Activity, Campaign, Item, Quote, Tenant
 from ..core.playbook import setting
-from ..core.utils import hour_in_window, now, to_local, to_utc_naive
+from ..core.utils import now, to_local, to_utc_naive
+from ..services import compliance
 from . import audience
 
 PRIOR_REPLY_RATE, PRIOR_CONVERSION_RATE, PRIOR_WEIGHT = 0.08, 0.02, 20  # beliefs before a play has history
@@ -58,13 +59,18 @@ def overstock(s, tenant: Tenant, since_days: int = 90) -> list[Item]:
 
 def best_send_time(s, tenant: Tenant, at: datetime) -> datetime:
     """Next occurrence of the local hour customers message most, outside quiet hours."""
-    tz, (q_start, q_end) = setting(tenant, "timezone"), setting(tenant, "compliance.quiet_hours")
-    hours = Counter(to_local(a.at, tz).hour for a in s.scalars(select(Activity).where(
-        Activity.tenant_id == tenant.id, Activity.type == "msg_in", Activity.at >= at - timedelta(days=90))))
-    ranked = [h for h, _ in hours.most_common()] + [DEFAULT_SEND_HOUR, 10, 12, 16, 18]
-    hour = next(h for h in ranked if not hour_in_window(h, q_start, q_end))
+    tz = setting(tenant, "timezone")
+    chosen = setting(tenant, "distribution.send_time")  # set in the Distribution agent as "HH:MM"; quiet hours still win
+    wanted = datetime.strptime(chosen, "%H:%M") if chosen else None
+    if wanted and not compliance.in_quiet_hours(tenant, wanted.hour):
+        hour, minute = wanted.hour, wanted.minute
+    else:
+        hours = Counter(to_local(a.at, tz).hour for a in s.scalars(select(Activity).where(
+            Activity.tenant_id == tenant.id, Activity.type == "msg_in", Activity.at >= at - timedelta(days=90))))
+        ranked = [h for h, _ in hours.most_common()] + [DEFAULT_SEND_HOUR, 10, 12, 16, 18]
+        hour, minute = next(h for h in ranked if not compliance.in_quiet_hours(tenant, h)), 0
     local = to_local(at, tz)
-    target = local.replace(hour=hour, minute=0, second=0, microsecond=0)
+    target = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if target <= local:
         target += timedelta(days=1)
     return to_utc_naive(target)

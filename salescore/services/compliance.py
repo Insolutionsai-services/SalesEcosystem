@@ -46,6 +46,10 @@ def proactive_sent_since(s, contact_id: int, since: datetime) -> int:
         Activity.data["kind"].as_string().notin_(("reply", "receipt")), Activity.at >= since))
 
 
+def in_quiet_hours(tenant: Tenant, hour: int) -> bool:
+    return hour_in_window(hour, *setting(tenant, "compliance.quiet_hours"))
+
+
 def check(s, tenant: Tenant, contact: Contact, kind: str, at: datetime) -> str | None:
     """kind: reply | followup | marketing. Returns a block reason, or None if the send is allowed."""
     if contact.opted_out:
@@ -53,8 +57,7 @@ def check(s, tenant: Tenant, contact: Contact, kind: str, at: datetime) -> str |
     if kind == "reply" and in_service_window(contact, at):
         return None  # answering the customer's own message is always allowed
 
-    start, end = setting(tenant, "compliance.quiet_hours")
-    if hour_in_window(to_local(at, setting(tenant, "timezone")).hour, start, end):
+    if in_quiet_hours(tenant, to_local(at, setting(tenant, "timezone")).hour):
         return "quiet hours"
 
     consent = has_consent(s, contact)
