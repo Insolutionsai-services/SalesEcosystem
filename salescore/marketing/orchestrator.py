@@ -5,13 +5,16 @@
       +---------------------------- results feed the next Strategy cycle -------------------------------+
 """
 from dataclasses import asdict
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
 from ..core import agents
 from ..core.models import Campaign, Tenant
 from ..core.playbook import setting
-from ..core.utils import now
+from ..core.utils import now, to_utc_naive
+from ..services import compliance
 from ..services.tasks import add_task
 from . import (
     attribution,
@@ -141,12 +144,33 @@ def _recheck(s, tenant: Tenant, campaign: Campaign) -> None:
     campaign.status = "pending_approval" if campaign.checks["ok"] else "needs_fix"
 
 
-def approve(s, tenant: Tenant, campaign: Campaign, text: str | None = None, send_now: bool = False) -> dict:
+def _chosen_time(tenant: Tenant, text: str) -> datetime:
+    """A manager's date and time (company-local unless it carries an offset) as naive UTC. Must be in the future and outside
+    quiet hours, which would block every send."""
+    try:
+        tz = ZoneInfo(setting(tenant, "timezone"))
+        when = datetime.fromisoformat(text)
+        local = when.astimezone(tz) if when.tzinfo else when.replace(tzinfo=tz)
+    except (ValueError, KeyError) as e:  # a bad timezone name is a KeyError
+        raise ValueError("pick a valid date and time") from e
+    if compliance.in_quiet_hours(tenant, local.hour):
+        start, end = setting(tenant, "compliance.quiet_hours")
+        raise ValueError(f"{local:%H:%M} is inside quiet hours ({start:02d}:00 to {end:02d}:00). Pick another time")
+    at = to_utc_naive(local)
+    if at <= now():
+        raise ValueError("pick a time in the future, or approve and send now")
+    return at
+
+
+def approve(s, tenant: Tenant, campaign: Campaign, text: str | None = None, send_now: bool = False,
+            send_at: str | None = None) -> dict:
     """Manager approved (optionally with rewritten copy): re-verify, then send at the planned time or now."""
     if not agents.enabled(tenant, "distribution"):
         raise ValueError("the Distribution agent is off: turn it on in Agents to send campaigns")
     if send_now:
         campaign.send_at = None
+    elif send_at:
+        campaign.send_at = _chosen_time(tenant, send_at)
     if text:
         campaign.variants = [{"label": "A", "angle": "edited by manager", "text": text}]
         campaign.draft = text

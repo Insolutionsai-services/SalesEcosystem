@@ -1,4 +1,5 @@
 """Quotes and orders (an order is a quote with status 'won'). Priced from the tenant catalog, never by the LLM."""
+from collections import Counter
 from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
@@ -7,7 +8,7 @@ from ..core.models import Contact, Quote, Tenant
 from ..core.playbook import setting
 from ..core.utils import now, parse_csv, parse_date
 from .activity import log_activity
-from .catalog import get_items
+from .catalog import change_stock, get_items
 from .contacts import find_or_create_contact, update_contact
 from .tasks import add_task
 
@@ -82,9 +83,12 @@ def close_quote(s, tenant: Tenant, quote: Quote, status: str, reason: str = "") 
     if status not in ("won", "lost"):
         raise ValueError("status must be won or lost")
     if status == "won" and quote.status != "won":  # the goods are sold: stock-tracked items go down by what was ordered
-        for sku, item in get_items(s, tenant.id, [ln["sku"] for ln in quote.lines]).items():
+        sold = Counter()
+        for ln in quote.lines:
+            sold[ln["sku"]] += ln["qty"]
+        for sku, item in get_items(s, tenant.id, sold).items():
             if item.stock is not None:
-                item.stock = max(0, item.stock - sum(ln["qty"] for ln in quote.lines if ln["sku"] == sku))
+                change_stock(s, tenant, item, max(0, item.stock - sold[sku]), f"Order #{quote.id} won")
     quote.status, quote.note = status, "; ".join(filter(None, [quote.note, reason])) or None
     quote.closed_at = now()
     contact = s.get(Contact, quote.contact_id)

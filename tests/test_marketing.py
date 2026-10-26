@@ -149,3 +149,19 @@ def test_feed_and_copilot(s, tenant, customers, llm_stub):
     assert s.get(Campaign, out["actions"][0]["id"]).status == "pending_approval"  # drafted, not sent
     events = feed(s, tenant)
     assert any(e["agent"] == "Creative" for e in events) and all(e["text"] for e in events)
+
+
+def test_manager_can_pick_the_send_time_and_the_agent_has_a_default(s, tenant):
+    from datetime import timedelta
+
+    import pytest
+
+    from salescore.core.utils import now, to_local
+    from salescore.marketing import orchestrator, strategy
+    tenant.playbook = {**tenant.playbook, "distribution": {"send_time": "14:30"}, "compliance": {"quiet_hours": [21, 9]}}
+    assert to_local(strategy.best_send_time(s, tenant, now()), "Asia/Kolkata").strftime("%H:%M") == "14:30"  # the agent's default
+    day = (to_local(now(), "Asia/Kolkata") + timedelta(days=2)).strftime("%Y-%m-%d")
+    assert orchestrator._chosen_time(tenant, f"{day}T16:15") > now()
+    for bad, msg in ((f"{day}T23:00", "quiet hours"), ("2020-01-01T12:00", "future"), ("soon", "valid")):
+        with pytest.raises(ValueError, match=msg):
+            orchestrator._chosen_time(tenant, bad)

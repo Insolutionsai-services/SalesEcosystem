@@ -12,7 +12,7 @@ from ..analytics.team import feed, roster
 from ..analytics.training import brain_status, train_tenant
 from ..core import agents as agent_config
 from ..core.config import PUBLIC_BASE_URL
-from ..core.models import Campaign, Contact, Quote, Task, Tenant, User
+from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone
 from ..marketing import attribution, audience, orchestrator, poster, strategy
@@ -155,6 +155,51 @@ def list_catalog(t: Tenant = Depends(tenant_of), s=Depends(db)):
     return catalog.list_items(s, t.id)
 
 
+def _item(s, t: Tenant, sku: str):
+    item = catalog.get_items(s, t.id, [sku]).get(sku)
+    if item is None:
+        raise HTTPException(404, "Item not found")
+    return item
+
+
+def _by(user: User | None) -> str:
+    return user.email if user else "API key"
+
+
+@router.put("/catalog/{sku:path}/stock")
+def update_stock(sku: str, body: schemas.StockChange, t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in), s=Depends(db)):
+    with transaction(s):
+        item = _item(s, t, sku)
+        catalog.change_stock(s, t, item, body.stock, body.reason or "Edited by hand", _by(user))
+    return catalog.item_dict(item)
+
+
+@router.post("/catalog", dependencies=[Depends(manager)])
+def add_item(body: schemas.NewItem, t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in), s=Depends(db)):
+    with transaction(s):
+        item = catalog.add_item(s, t, body.sku, body.name, body.price, body.stock, body.description,
+                                {"hsn": body.hsn} if body.hsn else None, _by(user))
+        catalog.reindex(s, t.id)  # customers can find the new item right away
+    return catalog.item_dict(item)
+
+
+@router.post("/catalog/delete", dependencies=[Depends(manager)])
+def delete_items(body: schemas.DeleteItems, t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in), s=Depends(db)):
+    with transaction(s):
+        found = catalog.get_items(s, t.id, body.skus)
+        for item in found.values():
+            catalog.delete_item(s, t, item, _by(user))
+        catalog.reindex(s, t.id)
+    return {"deleted": len(found)}
+
+
+@router.get("/catalog/{sku:path}/history")
+def stock_history(sku: str, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    rows = s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.type == "stock", Activity.data["sku"].as_string() == sku)
+                     .order_by(Activity.id.desc()).limit(50))
+    return [schemas.activity_out(a) for a in rows]
+
+
 @router.get("/catalog/search")
 def search(q: str, t: Tenant = Depends(tenant_of), s=Depends(db)):
     return catalog.search_catalog(s, t.id, q)
@@ -171,7 +216,7 @@ def approve(task_id: int, body: schemas.Decision, t: Tenant = Depends(tenant_of)
             s=Depends(db)):
     with transaction(s, error_status=409):
         return approvals.decide(s, t, owned(s, Task, task_id, t), body.approve, body.text, body.send_now,
-                                by=user.name if user else "API")
+                                by=user.name if user else "API", send_at=body.send_at)
 
 
 @router.get("/contacts")

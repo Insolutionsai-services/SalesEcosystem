@@ -20,7 +20,8 @@ DEFAULTS = {
         "overstock_ratio": 3,         # stock >= ratio x units sold in 90 days -> "clear overstock" play
         "plays": ["reward_champions", "win_back", "hot_leads", "new_leads", "clear_overstock"],  # Strategy may suggest
     },
-    "distribution": {"webhook_url": None},  # social/ads: posts go to this webhook (Postiz, Zapier, Make, n8n...)
+    # send_time "HH:MM": when approved campaigns go out (None = Strategy picks the best hour); webhook_url: social/ads posts go there (Postiz, Zapier, Make, n8n...)
+    "distribution": {"webhook_url": None, "send_time": None},
     # which agents run for this company (see core/agents.py); Data/CRM, Verification and Approval are always on
     "agents": {k: {"enabled": True} for k in ("strategy", "creative", "distribution", "response", "analytics", "orchestrator")},
     "creative": {"variants": 2},
