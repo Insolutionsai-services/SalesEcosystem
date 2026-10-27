@@ -3,10 +3,10 @@ import re
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
 from ..ai.llm import LLMUnavailable
-from ..core.config import MEDIA_DIR
+from ..core.config import MEDIA_DIR, PUBLIC_BASE_URL
 from ..core.models import init_db
 from . import auth, routes, webhooks
 
@@ -24,7 +24,20 @@ def ui():
     return FileResponse(UI)
 
 
-MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{16}\.(png|jpg|webp)$")
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    base = PUBLIC_BASE_URL.rstrip("/")
+    return PlainTextResponse(f"User-agent: *\nAllow: /$\nDisallow: /v1/\nDisallow: /webhooks/\nDisallow: /media/\n\nSitemap: {base}/sitemap.xml\n")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    loc = PUBLIC_BASE_URL.rstrip("/") + "/"
+    return Response(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>{loc}</loc></url></urlset>',
+                    media_type="application/xml")
+
+
+MEDIA_NAME =re.compile(r"^[A-Za-z0-9_-]{16}\.(png|jpg|webp)$")
 
 
 @app.get("/media/{name}", include_in_schema=False)
