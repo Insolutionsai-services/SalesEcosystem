@@ -14,6 +14,7 @@ dependencies = [
     "joblib>=1.6.0",
     "pillow>=12.3.0",
     "reportlab>=5.1.0",
+    "psycopg[binary]>=3.2",
 ]
 
 [dependency-groups]

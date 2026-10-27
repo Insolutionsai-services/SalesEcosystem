@@ -13,7 +13,7 @@ from . import auth, routes, webhooks
 UI = Path(__file__).resolve().parent.parent / "web" / "index.html"
 
 init_db()
-app = FastAPI(title="Sales Core", version="0.1")
+app = FastAPI(title="GYC", version="0.1")
 app.include_router(routes.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)

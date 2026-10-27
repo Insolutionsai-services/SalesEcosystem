@@ -46,6 +46,18 @@ class Login(BaseModel):
     password: str
 
 
+class SignUp(BaseModel):
+    name: str = ""
+    company: str = ""
+    email: str
+    password: str
+
+
+class VerifyCode(BaseModel):
+    email: str
+    code: str
+
+
 class PasswordChange(BaseModel):
     current: str
     new: str

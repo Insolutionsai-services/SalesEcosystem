@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import delete, func, select
 
-from ..core.models import LoginToken, User
+from ..core.models import LoginToken, Tenant, User
 from ..core.utils import norm_email, now
 
 ROLES = ("admin", "member")
@@ -69,8 +69,8 @@ def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def sign_in(s, email: str, password: str) -> tuple[User, str]:
-    """Returns the user and a new session token. Same error for unknown email and wrong password."""
+def check_login(s, email: str, password: str) -> User:
+    """Checks email + password. Same error for unknown email and wrong password."""
     email, at = norm_email(email) or "", now()
     fails, until = _fails.get(email, (0, at))
     if fails >= MAX_FAILS and at < until:
@@ -80,11 +80,42 @@ def sign_in(s, email: str, password: str) -> tuple[User, str]:
         _fails[email] = ((fails if at < until else 0) + 1, at + LOCKOUT)  # the window restarts after a quiet spell
         raise ValueError("wrong email or password")
     _fails.pop(email, None)
-    token = secrets.token_urlsafe(32)
+    return user
+
+
+def open_session(s, user: User) -> str:
+    """Signs the user in on this browser; returns the cookie value."""
+    at, token = now(), secrets.token_urlsafe(32)
     s.execute(delete(LoginToken).where(LoginToken.expires_at < at))
     s.add(LoginToken(token_hash=_token_hash(token), user_id=user.id, expires_at=at + timedelta(days=SESSION_DAYS)))
     user.last_login_at = at
-    return user, token
+    return token
+
+
+def sign_in(s, email: str, password: str) -> tuple[User, str]:
+    user = check_login(s, email, password)
+    return user, open_session(s, user)
+
+
+def create_workspace(s, company: str, email: str, name: str, password_hash: str) -> User:
+    """Self-service sign-up: a new, empty company with this person as its sales lead."""
+    email = norm_email(email)
+    if not email or "@" not in email:
+        raise ValueError("enter a valid email address")
+    if s.scalars(select(User).where(User.email == email)).first():
+        raise ValueError("that email already has an account")
+    name = name.strip() or email.split("@")[0]
+    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={})
+    s.add(tenant)
+    s.flush()
+    user = User(tenant_id=tenant.id, email=email, name=name, role="admin", password_hash=password_hash)
+    s.add(user)
+    s.flush()
+    return user
+
+
+def find(s, email: str) -> User | None:
+    return s.scalars(select(User).where(User.email == norm_email(email))).first()
 
 
 def user_for_token(s, token: str | None) -> User | None:

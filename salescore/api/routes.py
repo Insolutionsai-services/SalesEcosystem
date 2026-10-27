@@ -40,7 +40,7 @@ def create_tenant(body: schemas.NewTenant, s=Depends(db)):
 def brand(s=Depends(db)):
     """Public: the name on the sign-in page. One company on this server shows its name; several show the product name."""
     names = s.scalars(select(Tenant.name).limit(2)).all()
-    return {"name": names[0] if len(names) == 1 else "Sales Core"}
+    return {"name": names[0] if len(names) == 1 else "GYC"}
 
 
 def code_version() -> float:
