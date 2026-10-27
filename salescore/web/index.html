@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sales Core: AI sales team for WhatsApp leads</title>
+<title>GYC (Gain Your Customer): AI sales assistant for faster replies and more leads</title>
 <meta name="description" content="An AI sales team that replies to WhatsApp leads in seconds, qualifies them, sends quotes and follows up, with a person approving anything risky.">
 <meta name="keywords" content="AI sales assistant, WhatsApp lead management, WhatsApp sales automation, lead follow-up, CRM, quotes">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Sales Core: AI sales team for WhatsApp leads">
+<meta property="og:title" content="GYC (Gain Your Customer): AI sales assistant for faster replies and more leads">
 <meta property="og:description" content="Replies to WhatsApp leads in seconds, qualifies them, quotes and follows up.">
 <meta property="og:url" content="https://gyc.gamyan.space/">
 <link rel="canonical" href="https://gyc.gamyan.space/">
@@ -445,6 +445,16 @@
   .login-card input { padding: 12px 13px; background: var(--bg); }
   .login-card input:focus { background: var(--surface); }
   .login-card .btn.human { margin-top: 22px; padding: 13px 16px; font-size: .98rem; border-radius: 12px; }
+  .login-card [hidden] { display: none !important; }
+  .auth-tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 12px; margin-bottom: 20px; }
+  .auth-tabs button { flex: 1; border: 0; background: none; padding: 8px 10px; border-radius: 9px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .auth-tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .gbtn { width: 100%; margin-top: 18px; padding: 11px 14px; border-radius: 12px; }
+  .or { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--muted); font-size: .78rem; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .login-card form label { margin-top: 12px; }
+  .otp-row { display: flex; justify-content: space-between; margin-top: 10px; }
+  #otpCode { letter-spacing: .4em; text-align: center; font-size: 1.3rem; }
   .login-foot { position: fixed; left: clamp(20px, 6vw, 88px); bottom: 22px; font-size: .76rem; color: var(--muted); }
   .pw { position: relative; }
   .pw input { padding-right: 70px; }
@@ -561,7 +571,7 @@
 <body>
 <div class="shell">
   <aside class="rail">
-    <div class="brand"><span class="brand-mark" id="brandMark" aria-hidden="true">S</span><div><strong>Sales Core</strong><span id="tenantName">AI sales team</span></div></div>
+    <div class="brand"><span class="brand-mark" id="brandMark" aria-hidden="true">G</span><div><strong>GYC</strong><span id="tenantName">AI sales team</span></div></div>
     <nav class="nav" id="nav" aria-label="Main">
       <div class="nav-label">Today</div>
       <button data-page="home"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Command centre</span></button>
@@ -852,14 +862,27 @@
   <span class="glow a"></span><span class="glow b"></span><span class="glow c"></span><span class="dots"></span>
   <div class="login-name">
     <div class="login-top"><span class="live-dot"></span>Sales workspace</div>
-    <div class="login-mark" id="loginMark">S</div>
-    <h1 id="loginCompany">Sales Core</h1>
+    <div class="login-mark" id="loginMark">G</div>
+    <h1 id="loginCompany">GYC</h1>
     <div class="rule"></div>
   </div>
   <div class="login-card">
-    <h2>Welcome back</h2>
-    <p class="muted" style="margin:0">Sign in to continue.</p>
+    <div class="auth-tabs" role="tablist" aria-label="Sign in or create an account">
+      <button type="button" role="tab" aria-selected="true" data-mode="in">Sign in</button>
+      <button type="button" role="tab" aria-selected="false" data-mode="up">Create account</button>
+    </div>
+    <h2 id="authTitle">Welcome back</h2>
+    <p class="muted" id="authSub" style="margin:0">Sign in to continue.</p>
+    <button type="button" class="btn gbtn" id="googleBtn" hidden>
+      <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.5 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.9-4.7l-7.8-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-4-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <div class="or" id="authOr" hidden><span>or use your email</span></div>
     <form id="loginForm" novalidate>
+      <label for="signName" class="up-only" hidden>Your name</label>
+      <input id="signName" class="up-only" type="text" autocomplete="name" placeholder="Your name" hidden>
+      <label for="signCompany" class="up-only" hidden>Company</label>
+      <input id="signCompany" class="up-only" type="text" autocomplete="organization" placeholder="Your company" hidden>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.in" required>
       <label for="loginPass">Password</label>
@@ -867,9 +890,16 @@
       <div class="form-error" id="loginError" role="alert" hidden></div>
       <button class="btn human" type="submit" id="loginBtn">Sign in</button>
     </form>
-    <p class="tiny muted" style="margin:18px 0 0">Forgot your password? Ask your sales lead.</p>
+    <form id="otpForm" novalidate hidden>
+      <label for="otpCode">Verification code</label>
+      <input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required>
+      <div class="form-error" id="otpError" role="alert" hidden></div>
+      <button class="btn human" type="submit" id="otpBtn">Verify and continue</button>
+      <div class="otp-row"><button type="button" class="btn ghost sm" id="otpResend">Send a new code</button><button type="button" class="btn ghost sm" id="otpBack">Back</button></div>
+    </form>
+    <p class="tiny muted" style="margin:18px 0 0">Need help or a demo? <a href="mailto:insolutionsai@gmail.com">Contact us</a> at insolutionsai@gmail.com. Forgot your password? Ask your sales lead.</p>
   </div>
-  <div class="login-foot">Powered by Sales Core</div>
+  <div class="login-foot">Powered by GYC</div>
 </section>
 
 <div class="overlay" id="pwOverlay" hidden>
@@ -1988,8 +2018,11 @@ function showLogin() {
   $("#login").hidden = false; $("#loginError").hidden = true;
   fetch("/v1/brand").then((r) => r.json()).then((b) => {
     $("#loginCompany").textContent = b.name; document.title = `${b.name} · Sign in`;
-    $("#loginMark").textContent = (b.name.match(/[A-Za-z0-9]/) || ["S"])[0].toUpperCase();
+    $("#loginMark").textContent = (b.name.match(/[A-Za-z0-9]/) || ["G"])[0].toUpperCase();
   }).catch(() => {});
+  backToForm();
+  const bad = new URLSearchParams(location.search).get("login_error");
+  if (bad) { showErr("#loginError", bad === "google_off" ? "Google sign-in isn't set up yet." : "Google sign-in didn't work. Please try again."); history.replaceState(null, "", "/"); }
   setTimeout(() => ($("#loginEmail").value ? $("#loginPass") : $("#loginEmail")).focus(), 50);
 }
 $("#pwShow").onclick = () => {
@@ -1997,18 +2030,56 @@ $("#pwShow").onclick = () => {
   $("#loginPass").type = show ? "text" : "password"; $("#pwShow").textContent = show ? "Hide" : "Show";
   $("#pwShow").setAttribute("aria-label", show ? "Hide password" : "Show password");
 };
-const signIn = (email, password) => api("/v1/auth/login", { method: "POST", body: { email, password } });
+let authMode = "in", pending = null;  // pending: the request to repeat when "send a new code" is pressed
+const showErr = (id, msg) => { const el = $(id); el.hidden = true; void el.offsetWidth; el.textContent = msg.replace(/^./, (c) => c.toUpperCase()); el.hidden = false; };
+function setMode(mode) {
+  authMode = mode; const up = mode === "up";
+  $$(".auth-tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mode === mode)));
+  $$(".up-only").forEach((el) => (el.hidden = !up));
+  $("#authTitle").textContent = up ? "Create your account" : "Welcome back";
+  $("#authSub").textContent = up ? "Start your own workspace in a minute." : "Sign in to continue.";
+  $("#loginBtn").textContent = up ? "Create account" : "Sign in";
+  $("#loginPass").autocomplete = up ? "new-password" : "current-password";
+  $("#loginError").hidden = true;
+}
+$$(".auth-tabs button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+const finishLogin = () => { $("#loginPass").value = ""; $("#login").hidden = true; document.title = "GYC"; boot(); };
+function askCode(email) {
+  $("#loginForm").hidden = true; $(".auth-tabs").hidden = true; $("#googleBtn").hidden = true; $("#authOr").hidden = true;
+  $("#otpForm").hidden = false; $("#otpError").hidden = true; $("#otpCode").value = "";
+  $("#authTitle").textContent = "Check your email"; $("#authSub").textContent = `We sent a 6-digit code to ${email}.`;
+  $("#otpCode").focus();
+}
+function backToForm() {
+  $("#otpForm").hidden = true; $("#loginForm").hidden = false; $(".auth-tabs").hidden = false; pending = null;
+  fetch("/v1/auth/options").then((r) => r.json()).then((o) => { $("#googleBtn").hidden = !o.google; $("#authOr").hidden = !o.google; }).catch(() => {});
+  setMode(authMode);
+}
+$("#otpBack").onclick = backToForm;
+$("#googleBtn").onclick = () => { location.href = "/v1/auth/google"; };
 $("#loginForm").addEventListener("submit", (e) => {
   e.preventDefault();
-  const email = $("#loginEmail").value.trim(), password = $("#loginPass").value;
-  if (!email || !password) { $("#loginError").textContent = "Enter your email and password."; $("#loginError").hidden = false; return; }
+  const email = $("#loginEmail").value.trim(), password = $("#loginPass").value, up = authMode === "up";
+  if (!email || !password) { showErr("#loginError", "Enter your email and password."); return; }
+  const req = up ? ["/v1/auth/signup", { name: $("#signName").value, company: $("#signCompany").value, email, password }]
+                 : ["/v1/auth/login", { email, password }];
   busy($("#loginBtn"), async () => {
-    try { await signIn(email, password); } catch (err) {
-      $("#loginError").hidden = true; void $("#loginError").offsetWidth;  // restart the shake
-      $("#loginError").textContent = err.message.replace(/^./, (c) => c.toUpperCase()); $("#loginError").hidden = false; return;
-    }
-    $("#loginPass").value = ""; $("#login").hidden = true; document.title = "Sales Core"; boot();
+    let res;
+    try { res = await api(req[0], { method: "POST", body: req[1] }); } catch (err) { showErr("#loginError", err.message); return; }
+    if (res.otp) { pending = req; askCode(res.email); } else finishLogin();
   });
+});
+$("#otpForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const code = $("#otpCode").value.trim(), email = pending[1].email;
+  if (!/^\d{6}$/.test(code)) { showErr("#otpError", "Enter the 6-digit code."); return; }
+  busy($("#otpBtn"), async () => {
+    try { await api("/v1/auth/verify", { method: "POST", body: { email, code } }); } catch (err) { showErr("#otpError", err.message); return; }
+    finishLogin(); backToForm();
+  });
+});
+$("#otpResend").onclick = () => busy($("#otpResend"), async () => {
+  try { await api(pending[0], { method: "POST", body: pending[1] }); toast("A new code is on its way."); } catch (err) { showErr("#otpError", err.message); }
 });
 
 function renderUser(u) {
@@ -2116,7 +2187,7 @@ async function boot() {
     renderUser(me.user);
     state.currency = me.currency;
     $("#tenantName").textContent = me.name;
-    $("#brandMark").textContent = (me.name.match(/[A-Za-z]/) || ["S"])[0].toUpperCase();
+    $("#brandMark").textContent = (me.name.match(/[A-Za-z]/) || ["G"])[0].toUpperCase();
     $("#today").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
     $("#staleBanner").hidden = !me.stale;
     $("#homeTitle").textContent = me.name;

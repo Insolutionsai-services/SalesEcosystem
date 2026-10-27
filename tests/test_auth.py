@@ -68,3 +68,63 @@ def test_api_key_still_works_for_integrations(client):
     key = company(client, "Acme Paints", "boss@acme.in")
     assert client.get("/v1/me", headers={"X-API-Key": key}).json()["user"] is None
     assert client.get("/v1/me", headers={"X-API-Key": "nope"}).status_code == 401
+
+
+@pytest.fixture
+def mail(monkeypatch):
+    """Email set up, with sent codes captured instead of mailed."""
+    from salescore.services import otp
+    for k in otp.SMTP_KEYS:
+        monkeypatch.setenv(k, "x")
+    sent = {}
+    monkeypatch.setattr(otp, "_mail", lambda to, code: sent.__setitem__(to, code))
+    monkeypatch.setattr(otp, "COOLDOWN_S", 0)
+    return sent
+
+
+def test_email_code_on_sign_in(client, mail):
+    company(client, "Acme Paints", "boss@acme.in")
+    r = login(client, "boss@acme.in", "owner-pass-1")
+    assert r.json() == {"otp": True, "email": "boss@acme.in"} and client.get("/v1/me").status_code == 401  # no session yet
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": "000000"}).json()["detail"] == "wrong code"
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]}).status_code == 200
+    assert client.get("/v1/me").json()["user"]["email"] == "boss@acme.in"
+    client.post("/v1/auth/logout")
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]}).status_code == 422  # used up
+
+
+def test_code_attempts_are_limited(client, mail):
+    company(client, "Acme Paints", "boss@acme.in")
+    login(client, "boss@acme.in", "owner-pass-1")
+    for _ in range(5):
+        client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": "000000"})
+    r = client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]})
+    assert r.status_code == 422 and "too many" in r.json()["detail"]  # even the right code no longer works
+
+
+def test_sign_up_creates_a_workspace_after_the_code(client, mail):
+    r = client.post("/v1/auth/signup", json={"name": "Meera", "company": "Meera Interiors", "email": "Meera@Studio.in", "password": "meera-pass-1"})
+    assert r.json()["otp"] and client.post("/v1/auth/login", json={"email": "meera@studio.in", "password": "meera-pass-1"}).status_code == 422  # not created yet
+    assert client.post("/v1/auth/verify", json={"email": "meera@studio.in", "code": mail["meera@studio.in"]}).json()["role"] == "admin"
+    assert client.get("/v1/me").json()["name"] == "Meera Interiors"
+    assert client.post("/v1/auth/signup", json={"email": "meera@studio.in", "password": "meera-pass-1"}).status_code == 422  # taken
+    assert client.post("/v1/auth/signup", json={"email": "new@studio.in", "password": "short"}).status_code == 422
+
+
+def test_without_email_set_up_sign_in_is_plain_and_sign_up_is_direct(client, monkeypatch):
+    for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"):
+        monkeypatch.delenv(k, raising=False)
+    company(client, "Acme Paints", "boss@acme.in")
+    assert login(client, "boss@acme.in", "owner-pass-1").json()["email"] == "boss@acme.in"
+    client.post("/v1/auth/logout")
+    r = client.post("/v1/auth/signup", json={"name": "Meera", "company": "Meera Interiors", "email": "meera@studio.in", "password": "meera-pass-1"})
+    assert r.status_code == 200 and r.json()["role"] == "admin" and client.get("/v1/me").json()["name"] == "Meera Interiors"
+    assert [u["email"] for u in client.get("/v1/users").json()] == ["meera@studio.in"]  # her own empty company, never Acme's
+    assert client.post("/v1/auth/signup", json={"email": "sales@demo.in", "password": "x" * 8}).status_code == 422  # the demo login can't be claimed
+    assert client.post("/v1/auth/signup", json={"email": "x@demo.in", "password": "x" * 8}).status_code == 422
+    assert client.get("/v1/auth/options").json() == {"google": False, "email_codes": False}
+
+
+def test_demo_account_skips_the_code(client, mail):
+    company(client, "Demo Paints", "sales@demo.in")
+    assert login(client, "sales@demo.in", "owner-pass-1").json()["email"] == "sales@demo.in" and "sales@demo.in" not in mail

@@ -1,4 +1,5 @@
 """One schema for every industry: fixed core columns + JSON `attrs` for whatever a tenant's catalog/leads carry."""
+import re
 import secrets
 from datetime import datetime
 
@@ -55,6 +56,19 @@ class LoginToken(Base):
     __tablename__ = "login_tokens"
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class EmailCode(Base):
+    """A 6-digit code mailed to prove someone owns an email address. Only a hash is kept; `data` holds a pending sign-up."""
+    __tablename__ = "email_codes"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(200), index=True)
+    purpose: Mapped[str] = mapped_column(String(10))  # login | signup
+    code_hash: Mapped[str] = mapped_column(String(64))
+    data: Mapped[dict | None] = mapped_column(JSON)
+    attempts: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
 
 
@@ -173,7 +187,9 @@ class Campaign(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
-engine = create_engine(DATABASE_URL)
+# Hosted Postgres (Neon, Supabase...) often hands out postgres:// URLs; pre_ping revives connections the host put to sleep
+_URL = re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", DATABASE_URL)
+engine = create_engine(_URL, pool_pre_ping=not _URL.startswith("sqlite"))
 if engine.dialect.name == "sqlite":
     @event.listens_for(engine, "connect")
     def _sqlite_pragmas(conn, _):  # WAL: readers never block the writer; busy_timeout: wait for a lock instead of "database is locked"

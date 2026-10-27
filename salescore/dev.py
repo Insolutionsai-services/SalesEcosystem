@@ -156,7 +156,7 @@ def run(host: str, port: int, open_browser: bool, reload: bool = False) -> None:
     if cfg.key_env and not cfg.api_key:
         ai += f" - {cfg.key_env} NOT SET in .env; local models still answer routine messages"
     logins = "\n".join(f"            {email} / {password}  ({role})" for email, _, role, password in DEMO_USERS)
-    print(f"\n  Sales Core running\n  UI        {url}\n  Sign in\n{logins}\n"
+    print(f"\n  GYC running\n  UI        {url}\n  Sign in\n{logins}\n"
           f"  API docs  http://{host}:{port}/docs   (API key {tenant.api_key})\n"
           f"  Admin key {os.environ['ADMIN_KEY']}\n  AI        {ai}\n", flush=True)
     if open_browser:
