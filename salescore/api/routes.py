@@ -36,10 +36,9 @@ def create_tenant(body: schemas.NewTenant, s=Depends(db)):
 
 
 @router.get("/brand")
-def brand(s=Depends(db)):
-    """Public: the name on the sign-in page. One company on this server shows its name; several show the product name."""
-    names = s.scalars(select(Tenant.name).limit(2)).all()
-    return {"name": names[0] if len(names) == 1 else "GYC"}
+def brand():
+    """Public: the product name on the sign-in page. A company's own name shows once its people are signed in."""
+    return {"name": "GYC"}
 
 
 def code_version() -> float:
