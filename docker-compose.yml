@@ -1,0 +1,44 @@
+# One VM, three containers: Postgres, the API/UI, and the cron loop (`salescore tick`). State persists in ./data.
+x-app: &app
+  image: salescore
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://sales:${POSTGRES_PASSWORD:-sales}@db:5432/sales
+  volumes: ["./data/app:/data"]   # trained models + posters
+  mem_limit: 600m                  # hard cap per container; the VM has 1 GB + 2 GB swap
+  depends_on:
+    db: { condition: service_healthy }
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sales
+      POSTGRES_DB: sales
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sales}
+    volumes: ["./data/postgres:/var/lib/postgresql/data"]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sales"]
+      interval: 5s
+      retries: 10
+    # ponytail: Postgres on the same free VM, not Cloud SQL (not in the free tier). Move to Cloud SQL if you outgrow 1 GB RAM.
+  app:
+    <<: *app
+    build: .
+  proxy:
+    # HTTPS with an automatic Let's Encrypt certificate for $DOMAIN (set it in .env); plain :80 when DOMAIN is empty
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    command: caddy reverse-proxy --from ${DOMAIN:-:80} --to app:8080
+    volumes: ["./data/caddy:/data"]
+    mem_limit: 128m
+    depends_on: [app]
+  tick:
+    <<: *app
+    mem_limit: 256m
+    # every 5 min; --daily once a day at ~02:00 UTC
+    command: sh -c 'while true; do sleep 300; H=$$(date -u +%H%M); if [ "$$H" -ge 0200 ] && [ "$$H" -lt 0205 ]; then python -m salescore tick --daily; else python -m salescore tick; fi; done'

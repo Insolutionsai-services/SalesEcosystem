@@ -1,0 +1,13 @@
+.venv
+.git
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.env
+sales.db*
+models
+media
+docs
+*.docx
+tests
