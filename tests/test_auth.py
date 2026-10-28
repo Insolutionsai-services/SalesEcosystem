@@ -82,23 +82,17 @@ def mail(monkeypatch):
     return sent
 
 
-def test_email_code_on_sign_in(client, mail):
+def test_sign_in_needs_no_code_even_with_email_set_up(client, mail):
     company(client, "Acme Paints", "boss@acme.in")
-    r = login(client, "boss@acme.in", "owner-pass-1")
-    assert r.json() == {"otp": True, "email": "boss@acme.in"} and client.get("/v1/me").status_code == 401  # no session yet
-    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": "000000"}).json()["detail"] == "wrong code"
-    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]}).status_code == 200
+    assert login(client, "boss@acme.in", "owner-pass-1").json()["email"] == "boss@acme.in" and "boss@acme.in" not in mail
     assert client.get("/v1/me").json()["user"]["email"] == "boss@acme.in"
-    client.post("/v1/auth/logout")
-    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]}).status_code == 422  # used up
 
 
 def test_code_attempts_are_limited(client, mail):
-    company(client, "Acme Paints", "boss@acme.in")
-    login(client, "boss@acme.in", "owner-pass-1")
+    client.post("/v1/auth/signup", json={"name": "Meera", "company": "Meera Interiors", "email": "meera@studio.in", "password": "meera-pass-1"})
     for _ in range(5):
-        client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": "000000"})
-    r = client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": mail["boss@acme.in"]})
+        client.post("/v1/auth/verify", json={"email": "meera@studio.in", "code": "000000"})
+    r = client.post("/v1/auth/verify", json={"email": "meera@studio.in", "code": mail["meera@studio.in"]})
     assert r.status_code == 422 and "too many" in r.json()["detail"]  # even the right code no longer works
 
 
