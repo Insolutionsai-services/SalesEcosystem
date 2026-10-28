@@ -83,3 +83,11 @@ def test_email_cap_blocks_the_send_instead_of_crashing_the_sender(s, monkeypatch
     assert results == [True, True, True, False] and len(sent) == 3
     blocked = s.scalars(select(Activity).where(Activity.tenant_id == tenant.id, Activity.type == "blocked")).all()
     assert len(blocked) == 1 and "emails" in blocked[0].data["reason"]
+
+
+def test_signups_remember_the_outreach_link_they_came_from(client):
+    client.post("/v1/auth/signup", json={"name": "Asha", "company": "Asha Lights", "email": "asha@lights.in", "password": "asha-pass-12", "source": "mail city=pune kind=smart"})
+    rows = client.get("/v1/tenants", headers={"X-Admin-Key": "adm"}).json()
+    asha = next(r for r in rows if r["name"] == "Asha Lights")
+    assert asha["source"] == "mail city=pune kind=smart" and asha["plan"] == "trial" and asha["members"] == ["asha@lights.in"]
+    assert client.get("/v1/tenants").status_code == 422  # no admin key, no list

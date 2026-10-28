@@ -23,6 +23,14 @@ from .deps import db, manager, owned, require_admin, signed_in, tenant_of, trans
 router = APIRouter(prefix="/v1")
 
 
+@router.get("/tenants", dependencies=[Depends(require_admin)])
+def list_tenants(s=Depends(db)):
+    """Platform owner: every company, where it came from and how far its trial is. Sign-ups from outreach carry source="mail ..."."""
+    return [{"id": t.id, "name": t.name, "plan": t.plan, "since": t.plan_started_at.date().isoformat(), "source": t.source,
+             "members": [u.email for u in s.scalars(select(User).where(User.tenant_id == t.id))]}
+            for t in s.scalars(select(Tenant).order_by(Tenant.id))]
+
+
 @router.post("/tenants", dependencies=[Depends(require_admin)])
 def create_tenant(body: schemas.NewTenant, s=Depends(db)):
     owner = body.model_dump(include={"owner_email", "owner_name", "owner_password"})
