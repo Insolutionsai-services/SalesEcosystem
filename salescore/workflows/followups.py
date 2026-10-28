@@ -8,6 +8,7 @@ from ..core.playbook import setting
 from ..core.utils import now
 from ..services import channels, compliance
 from ..services.activity import has_activity
+from ..services.plan import PlanLimit
 from ..services.tasks import add_task, due_tasks, has_open_task
 
 JOB_GATE_KIND = {"followup": "followup", "first_touch": "marketing", "reorder": "marketing"}
@@ -40,7 +41,7 @@ def _run_one(s, tenant: Tenant, task: Task, at: datetime) -> bool:
         return False
     try:
         text = agent.run(s, tenant, task.kind, f"Task: {task.kind}. {task.data.get('note', '')}", contact)
-    except llm.LLMUnavailable:  # provider down or not configured: keep the task, try again later
+    except (llm.LLMUnavailable, PlanLimit):  # provider down, not configured, or trial cap: keep the task, try again later
         task.status, task.due_at = "open", at + RETRY_AFTER
         return False
     if agent.is_skip(text) or not channels.send(s, tenant, contact, text, gate_kind, via="llm"):

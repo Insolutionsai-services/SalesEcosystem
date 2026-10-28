@@ -68,7 +68,7 @@ FIELDS = {
         _f("distribution.webhook_url", "Social / ads webhook URL", "text", "Postiz, Zapier, Make or n8n"),
     ],
     "response": [
-        _f("fastpath.enabled", "Answer routine questions instantly with the local models", "bool", "Free and instant"),
+        _f("fastpath.enabled", "Answer routine questions instantly", "bool", "Free and instant"),
         _f("followup_days", "Follow up after (days)", "intlist", "e.g. 1, 3, 7"),
         _f("qualify", "Questions to ask customers", "list"),
         _f("handoff_rules", "When to hand over to a person", "list"),

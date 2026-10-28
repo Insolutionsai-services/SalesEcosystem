@@ -10,6 +10,7 @@ import httpx
 
 from ..core.config import MEDIA_DIR, WA_API_VERSION
 from ..core.models import Contact, Tenant
+from . import plan
 from ..core.playbook import setting
 from ..core.utils import now, plain_text, whatsapp_format
 from . import compliance
@@ -151,6 +152,11 @@ def send(s, tenant: Tenant, contact: Contact, text: str, kind: str, via: str | N
     """kind: reply | followup | marketing (see compliance.check); via: fastpath | llm | human | campaign.
     meta (e.g. campaign_id, variant) is logged with the message so analytics can attribute results."""
     reason = compliance.check(s, tenant, contact, kind, now())
+    if not reason and pick(tenant, contact) == "email":
+        try:
+            plan.check(s, tenant, "emails")  # trial companies: three emails in total, counted on the server
+        except plan.PlanLimit as e:
+            reason = str(e)
     if reason:
         log_activity(s, tenant.id, contact.id, "blocked", body=text, kind=kind, reason=reason, **meta)
         return False

@@ -7,6 +7,9 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///sales.db")
 MODEL_DIR = os.getenv("MODEL_DIR", "models")  # trained per-tenant ML artifacts
 MEDIA_DIR = os.getenv("MEDIA_DIR", "media")    # campaign posters (generated or uploaded)
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://127.0.0.1:8000")  # how social tools reach /media
+# Trial companies see these when they hit a cap (services/plan.py)
+DEMO_BOOKING_URL = os.getenv("DEMO_BOOKING_URL", "https://www.gamyan.space/#contact")
+CONTACT_URL = os.getenv("CONTACT_URL", "https://www.gamyan.space/#contact")
 
 # LLM: any OpenAI-compatible Chat Completions endpoint (see ai/llm.py for provider presets)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # gemini | openrouter | ollama | custom

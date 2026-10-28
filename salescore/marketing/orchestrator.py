@@ -15,6 +15,8 @@ from ..core.models import Campaign, Tenant
 from ..core.playbook import setting
 from ..core.utils import now, to_utc_naive
 from ..services import compliance
+from ..services.plan import PlanLimit
+from ..services.plan import check as plan_check
 from ..services.tasks import add_task
 from . import (
     attribution,
@@ -53,6 +55,7 @@ def launch(s, tenant: Tenant, play: strategy.Play, writer: str = "ai", message: 
         raise ValueError("unknown message or image option")
     if writer == "own" and not (message or "").strip():
         raise ValueError("write the message, or choose 'Write with AI'")
+    plan_check(s, tenant, "campaigns")  # trial companies: two campaigns in total (checked before any AI or poster work)
     people = audience.segment_contacts(s, tenant, play.segment)
     if writer == "own":
         draft = creative.manual(message)
@@ -197,7 +200,10 @@ def run_cycle(s, tenant: Tenant, daily: bool = False) -> dict:
         waiting = s.scalars(select(Campaign.id).where(Campaign.tenant_id == tenant.id,
                                                       Campaign.status.in_(strategy.ACTIVE_STATUSES))).first()
         if setting(tenant, "marketing.auto_draft") and not waiting and (plays := strategy.recommend(s, tenant, 1)):
-            out["drafted"] = launch(s, tenant, plays[0]).id
+            try:
+                out["drafted"] = launch(s, tenant, plays[0]).id
+            except PlanLimit as e:  # trial cap: the rest of the daily run still happens
+                out["drafted"] = str(e)
     return out
 
 

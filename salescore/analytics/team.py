@@ -2,7 +2,7 @@
 This is the live answer to "which part of the sales team is doing what"."""
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from ..core import agents
 from ..core.models import (
@@ -15,15 +15,13 @@ from ..core.models import (
     Task,
     Tenant,
 )
-from ..core.utils import now
+from ..core.utils import count as _count, now
 from ..marketing import strategy
 from ..ml import store
 
 CHAIN = ["data_crm", "strategy", "creative", "verification", "approval", "distribution", "response", "analytics"]
 
 
-def _count(s, model, *where) -> int:
-    return s.scalar(select(func.count()).select_from(model).where(*where)) or 0
 
 
 def roster(s, tenant: Tenant) -> list[dict]:
@@ -39,52 +37,52 @@ def roster(s, tenant: Tenant) -> list[dict]:
     team = [
         {"key": "data_crm", "name": "Data / CRM Agent", "layer": "Foundation", "status": "active",
          "job": "Single source of truth: customers, consent, catalog/fact sheet; logs every conversation automatically.",
-         "code": "services/contacts, catalog, activity · ml/ training", "stats": {
+         "stats": {
              "contacts": _count(s, Contact, Contact.tenant_id == t), "catalog items": _count(s, Item, Item.tenant_id == t),
              "consent records": _count(s, Consent, Consent.tenant_id == t), "events logged (30d)": len(acts),
              "models trained": brain.trained_at.isoformat(timespec="minutes") if brain else "never"}},
         {"key": "strategy", "name": "Strategy Agent", "layer": "Thinking", "status": "active",
          "job": "Picks segment + offer + channel + timing from data and past campaign results.",
-         "code": "marketing/strategy", "stats": {
+         "stats": {
              "plays recommended now": len(strategy.recommend(s, tenant)),
              "plays learned from results": len({c.play for c in campaigns if c.results})}},
         {"key": "creative", "name": "Creative Agent", "layer": "Doing", "status": "active",
          "job": "Writes A/B copy per segment and an image/video brief (image generation: later phase).",
-         "code": "marketing/creative", "stats": {
+         "stats": {
              "campaigns drafted (30d)": len(campaigns), "A/B variants": sum(len(c.variants or []) for c in campaigns)}},
         {"key": "verification", "name": "Verification / Compliance Agent", "layer": "Doing", "status": "active",
          "job": "Checks every price/claim against the catalog and rules; consent, opt-out, quiet hours, caps.",
-         "code": "marketing/verification · services/compliance", "stats": {
+         "stats": {
              "campaigns failing checks (30d)": sum(1 for c in campaigns if c.checks and not c.checks.get("ok")),
              "sends blocked by rules (30d)": len(acts_of("blocked"))}},
         {"key": "approval", "name": "Human approval checkpoint", "layer": "Control", "status": "active",
          "job": "Managers approve campaigns and quotes above limits; hand-offs to salespeople.",
-         "code": "workflows/approvals · Queue tab", "stats": {
+         "stats": {
              "waiting for approval": _count(s, Task, Task.tenant_id == t, Task.kind == "approval", Task.status == "open"),
              "open hand-offs": _count(s, Task, Task.tenant_id == t, Task.kind == "handoff", Task.status == "open")}},
         {"key": "distribution", "name": "Distribution Agent", "layer": "Doing", "status": "active",
          "job": "WhatsApp/email broadcast (A/B + holdout) at the planned time; social/ads via webhook.",
-         "code": "marketing/distribution · services/channels", "stats": {
+         "stats": {
              "campaign messages sent (30d)": len(acts_of("msg_out", via="campaign")),
              "scheduled campaigns": _count(s, Campaign, Campaign.tenant_id == t, Campaign.status == "scheduled"),
              "social posts (30d)": sum(1 for c in campaigns if c.channel == "social" and c.status == "sent")}},
         {"key": "response", "name": "Response Agent", "layer": "Doing", "status": "active",
          "job": "Replies in seconds, qualifies, quotes from the catalog, follows up persistently, hands off.",
-         "code": "workflows/inbound, followups · ai/fastpath, agent", "stats": {
-             "replies (30d)": len(replies), "answered by local models": sum(a.data.get("via") == "fastpath" for a in replies),
+         "stats": {
+             "replies (30d)": len(replies), "answered instantly": sum(a.data.get("via") == "fastpath" for a in replies),
              "quotes (30d)": _count(s, Quote, Quote.tenant_id == t, Quote.created_at >= since),
              "follow-ups sent (30d)": len(acts_of("msg_out", kind="followup"))}},
         {"key": "voice", "name": "Voice Agent", "layer": "Doing (later phase)", "status": "planned",
          "job": "Answers calls for engaged leads (IndicConformer speech-to-text + Indic Parler-TTS).",
-         "code": "not built yet - deferred per plan", "stats": {}},
+         "stats": {}},
         {"key": "analytics", "name": "Analytics Agent", "layer": "Learning", "status": "active",
          "job": "Measures replies, sales and lift vs holdout per campaign and variant; feeds Strategy.",
-         "code": "marketing/attribution · analytics/metrics, scoring", "stats": {
+         "stats": {
              "campaigns measured": sum(1 for c in campaigns if c.results),
-             "AI calls (30d)": len(acts_of("llm"))}},
+             "AI messages (30d)": len(acts_of("llm"))}},
         {"key": "orchestrator", "name": "Orchestrator Agent", "layer": "Control", "status": "active",
          "job": "Runs the chain in order, schedules sends, retries later on failure, escalates to humans.",
-         "code": "marketing/orchestrator · workflows/scheduler", "stats": {
+         "stats": {
              "campaigns in the pipeline": sum(1 for c in campaigns if c.status in strategy.ACTIVE_STATUSES)}},
     ]
     for agent in team:  # live state from the company's settings: always / on / off / planned
@@ -116,7 +114,7 @@ def _activity_event(a: Activity, who: str) -> dict | None:
             return _event(a.at, "Response", f"Followed up with {who}", "info", c)
         if kind == "marketing":
             return _event(a.at, "Response", f"Sent {who} a proactive message", "info", c)
-        how = " instantly with a local model" if via == "fastpath" else ""
+        how = " instantly" if via == "fastpath" else ""
         return _event(a.at, "Response", f"Answered {who}{how}: “{_short(a.body, 70)}”", "good", c)
     if a.type == "blocked":
         return _event(a.at, "Verification", f"Stopped a {d.get('kind')} message to {who}: {d.get('reason')}", "warn", c)
