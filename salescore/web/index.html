@@ -2054,6 +2054,7 @@ function showLogin() {
   clearInterval(poller);
   if (!$("#login").hidden) return;
   $("#login").hidden = false; $("#loginError").hidden = true;
+  if (new URL(location.href).searchParams.has("from") && authMode !== "up") setMode("up");  // a link from an outreach mail opens on Create account
   const nameWords = (name) => $("#loginCompany").innerHTML = name.split(/\s+/).map((w, i) => `<span class="w"><span style="--i:${i}">${esc(w)}</span></span>`).join(" ");
   fetch("/v1/brand").then((r) => r.json()).then((b) => {
     nameWords(b.name); document.title = `${b.name} · Sign in`;
