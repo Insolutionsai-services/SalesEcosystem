@@ -91,3 +91,21 @@ def test_signups_remember_the_outreach_link_they_came_from(client):
     asha = next(r for r in rows if r["name"] == "Asha Lights")
     assert asha["source"] == "mail city=pune kind=smart" and asha["plan"] == "trial" and asha["members"] == ["asha@lights.in"]
     assert client.get("/v1/tenants").status_code == 422  # no admin key, no list
+
+
+def test_outreach_sends_and_replies_show_in_gyc(client):
+    client.post("/v1/tenants", headers={"X-Admin-Key": "adm"}, json={"name": "Gamyan", "owner_email": "me@gamyan.in", "owner_name": "C", "owner_password": "owner-pass-1"})
+    key = next(r for r in client.get("/v1/tenants", headers={"X-Admin-Key": "adm"}).json() if r["name"] == "Gamyan")["api_key"]
+    h = {"X-API-Key": key}
+    mail = {"email": "devi@shop.in", "name": "Devi Marketing", "subject": "Hello", "text": "body", "touch": 0, "kind": "hardware"}
+    assert client.post("/v1/outreach", headers=h, json=mail).status_code == 200
+    assert client.post("/v1/outreach", headers=h, json=mail | {"touch": 1}).status_code == 200
+    assert client.post("/v1/outreach", headers=h, json={"email": "arun@sofa.in", "name": "Arun Sofas", "subject": "x", "text": "y", "kind": "furniture"}).status_code == 200
+    assert client.post("/v1/outreach", headers=h, json={"email": "devi@shop.in", "direction": "in", "subject": "Re: Hello", "text": "Please call me tomorrow"}).status_code == 200
+    assert client.post("/v1/outreach", headers=h, json={"email": "arun@sofa.in", "direction": "in", "subject": "Re: x", "text": "STOP"}).status_code == 200
+    s = client.get("/v1/outreach", headers=h).json()
+    assert s["companies_mailed"] == 2 and s["mails_sent"] == 3 and s["replied"] == ["Devi Marketing"] and s["stopped"] == ["Arun Sofas"]
+    devi = next(c for c in s["companies"] if c["name"] == "Devi Marketing")
+    assert devi["mails"] == 2 and devi["kind"] == "hardware" and devi["replied"] and not devi["stopped"]
+    cs = client.get("/v1/contacts", headers=h).json()
+    assert {c["source"] for c in cs} == {"outreach"} and any(c["opted_out"] for c in cs)

@@ -161,6 +161,18 @@ def user_out(u: User) -> dict:
     return fields(u, "id", "name", "email", "role", "last_login_at")
 
 
+class OutreachMail(BaseModel):
+    """One cold email the outreach script sent (direction out), or a reply it found in the inbox (direction in)."""
+    email: str
+    name: str = ""
+    subject: str = ""
+    text: str = ""
+    direction: str = "out"
+    touch: int = 0       # 0 first mail, 1 day-3, 2 day-7
+    kind: str = ""       # business kind the template was picked for
+    city: str = ""
+
+
 def contact_out(c: Contact) -> dict:
     return fields(c, "id", "name", "phone", "email", "stage", "score", "segment", "source", "attrs",
                   "opted_out", "bot_paused", "last_inbound_at", "created_at")
