@@ -13,9 +13,9 @@ from ..core import agents as agent_config
 from ..core.config import PUBLIC_BASE_URL
 from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
-from ..core.utils import norm_email, norm_phone
+from ..core.utils import norm_email, norm_phone, now
 from ..marketing import attribution, audience, orchestrator, poster, strategy
-from ..services import activity, catalog, channels, contacts, plan, quotes, receipt, tasks, users
+from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, receipt, tasks, users
 from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
 from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
@@ -26,7 +26,7 @@ router = APIRouter(prefix="/v1")
 @router.get("/tenants", dependencies=[Depends(require_admin)])
 def list_tenants(s=Depends(db)):
     """Platform owner: every company, where it came from and how far its trial is. Sign-ups from outreach carry source="mail ..."."""
-    return [{"id": t.id, "name": t.name, "plan": t.plan, "since": t.plan_started_at.date().isoformat(), "source": t.source,
+    return [{"id": t.id, "name": t.name, "plan": t.plan, "since": t.plan_started_at.date().isoformat(), "source": t.source, "api_key": t.api_key,
              "members": [u.email for u in s.scalars(select(User).where(User.tenant_id == t.id))]}
             for t in s.scalars(select(Tenant).order_by(Tenant.id))]
 
@@ -226,6 +226,35 @@ def approve(task_id: int, body: schemas.Decision, t: Tenant = Depends(tenant_of)
 @router.get("/contacts")
 def list_contacts(t: Tenant = Depends(tenant_of), s=Depends(db)):
     return [schemas.contact_out(c) for c in contacts.list_contacts(s, t.id)]
+
+
+@router.post("/outreach", dependencies=[Depends(manager)])
+def log_outreach(body: schemas.OutreachMail, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """The outreach script mailed a lead outside GYC, or the lead wrote back: record it here so Contacts and the timeline show it."""
+    with transaction(s):
+        c = contacts.find_or_create_contact(s, t, email=body.email, name=body.name, source="outreach")
+        c.attrs = {**c.attrs, **{k: v for k, v in (("kind", body.kind), ("city", body.city)) if v}}
+        if body.direction == "in":
+            c.last_inbound_at = now()
+            if compliance.is_opt_out(body.text):
+                c.opted_out = True
+            activity.log_activity(s, t.id, c.id, "msg_in", body.text, "email", via="outreach", subject=body.subject)
+        else:
+            activity.log_activity(s, t.id, c.id, "msg_out", body.subject + "\n\n" + body.text, "email", outreach=body.touch, via="outreach")
+    return {"contact_id": c.id}
+
+
+@router.get("/outreach")
+def outreach_summary(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """How the cold outreach is going: every company mailed, how many mails it got, whether it replied or asked to stop."""
+    leads = s.scalars(select(Contact).where(Contact.tenant_id == t.id, Contact.source == "outreach").order_by(Contact.id)).all()
+    acts = s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.channel == "email", Activity.contact_id.in_([c.id for c in leads]))).all() if leads else []
+    out = {c.id: sum(1 for a in acts if a.contact_id == c.id and a.type == "msg_out") for c in leads}
+    companies = [{"name": c.name, "email": c.email, "kind": c.attrs.get("kind") or "general", "city": c.attrs.get("city") or "",
+                  "mails": out[c.id], "replied": bool(c.last_inbound_at) and not c.opted_out, "stopped": c.opted_out} for c in leads]
+    return {"companies_mailed": len(leads), "mails_sent": sum(out.values()),
+            "replied": [x["name"] for x in companies if x["replied"]], "stopped": [x["name"] for x in companies if x["stopped"]],
+            "last_sent_at": max((a.at for a in acts if a.type == "msg_out"), default=None), "companies": companies}
 
 
 @router.get("/contacts/{contact_id}/timeline")
