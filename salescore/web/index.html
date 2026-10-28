@@ -126,6 +126,8 @@
   .panel-head h2 svg { color: var(--agent); }
   .cols { display: grid; gap: 22px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #quoteRows .row, #quoteRows [data-pay-form] { flex-wrap: nowrap; }
+  #quoteRows td:nth-child(4), #quoteRows td:nth-child(6), #quoteRows td:nth-child(7), #quoteRows td:last-child { white-space: nowrap; }
   .stack { display: flex; flex-direction: column; gap: 10px; }
   .btn { --spin: var(--ink); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
     border: 1px solid var(--line-strong); background: var(--surface); padding: 8px 15px; border-radius: var(--r-sm);
@@ -418,7 +420,7 @@
   @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px) scale(.97); } }
   #toast.bad { background: var(--bad); color: var(--surface); }
   /* ---------- sign in: a light page with soft mint and peach light; the company's name large on the left, the form on a white card ---------- */
-  .login { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: center;
+  .login { position: fixed; inset: 0; z-index: 30; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: center;
     gap: 40px; padding: 48px clamp(20px, 6vw, 88px); background: var(--bg); overflow: auto; isolation: isolate; }
   .login .glow { position: fixed; border-radius: 50%; filter: blur(80px); z-index: -1; pointer-events: none; }
   .login .glow.a { width: 520px; height: 520px; background: var(--agent); opacity: .16; left: -160px; bottom: -200px; animation: drift 20s ease-in-out infinite alternate; }
@@ -453,6 +455,9 @@
   .or { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--muted); font-size: .78rem; }
   .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .login-card form label { margin-top: 12px; }
+  .up-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+  .up-pair > div { display: flex; flex-direction: column; min-width: 0; }
+  @media (max-height: 820px) { .login { overflow-y: auto; align-content: start; padding-top: 24px; } .login-foot { display: none; } }
   .otp-row { display: flex; justify-content: space-between; margin-top: 10px; }
   #otpCode { letter-spacing: .4em; text-align: center; font-size: 1.3rem; }
   .login-foot { position: fixed; left: clamp(20px, 6vw, 88px); bottom: 22px; font-size: .76rem; color: var(--muted); }
@@ -565,6 +570,7 @@
     .copilot { width: 100%; }
     .event { grid-template-columns: 30px minmax(0, 1fr); } .event .when { grid-column: 2; }
   }
+  body:not(.ready) .shell { visibility: hidden; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
@@ -879,10 +885,10 @@
     </button>
     <div class="or" id="authOr" hidden><span>or use your email</span></div>
     <form id="loginForm" novalidate>
-      <label for="signName" class="up-only" hidden>Your name</label>
-      <input id="signName" class="up-only" type="text" autocomplete="name" placeholder="Your name" hidden>
-      <label for="signCompany" class="up-only" hidden>Company</label>
-      <input id="signCompany" class="up-only" type="text" autocomplete="organization" placeholder="Your company" hidden>
+      <div class="up-only up-pair" hidden>
+        <div><label for="signName">Your name</label><input id="signName" type="text" autocomplete="name" placeholder="Your name"></div>
+        <div><label for="signCompany">Company</label><input id="signCompany" type="text" autocomplete="organization" placeholder="Your company"></div>
+      </div>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.in" required>
       <label for="loginPass">Password</label>
@@ -897,9 +903,9 @@
       <button class="btn human" type="submit" id="otpBtn">Verify and continue</button>
       <div class="otp-row"><button type="button" class="btn ghost sm" id="otpResend">Send a new code</button><button type="button" class="btn ghost sm" id="otpBack">Back</button></div>
     </form>
-    <p class="tiny muted" style="margin:18px 0 0">Need help or a demo? <a href="mailto:insolutionsai@gmail.com">Contact us</a> at insolutionsai@gmail.com. Forgot your password? Ask your sales lead.</p>
+    <p class="tiny muted" style="margin:18px 0 0">Need help or a demo? <a href="mailto:insolutionsai@gmail.com">Contact us</a> at insolutionsai@gmail.com. Forgot your password? Ask your sales lead. <a href="https://www.gamyan.space" target="_blank" rel="noopener">Visit www.gamyan.space</a></p>
   </div>
-  <div class="login-foot">Powered by GYC</div>
+  <div class="login-foot">Powered by GYC · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Visit www.gamyan.space</a></div>
 </section>
 
 <div class="overlay" id="pwOverlay" hidden>
@@ -2184,6 +2190,7 @@ async function boot() {
   try { localStorage.removeItem("sc_key"); } catch { /* private mode */ }  // keys no longer live in the browser
   try {
     const me = await api("/v1/me");
+    document.body.classList.add("ready");
     renderUser(me.user);
     state.currency = me.currency;
     $("#tenantName").textContent = me.name;

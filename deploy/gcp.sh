@@ -24,8 +24,7 @@ if ! gcloud compute instances describe "$VM" --zone "$ZONE" >/dev/null 2>&1; the
     --metadata startup-script='#!/bin/bash
       set -e
       if [ ! -f /swapfile ]; then fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab; fi
-      command -v docker >/dev/null || { apt-get update && apt-get install -y git docker.io docker-compose-v2; }
-      systemctl enable --now docker'
+'
   gcloud compute firewall-rules describe allow-http >/dev/null 2>&1 || \
     gcloud compute firewall-rules create allow-http --allow tcp:80,tcp:443 --target-tags http-server
   echo "waiting for the VM to boot and install docker..."; sleep 90
@@ -38,6 +37,7 @@ DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d= -f2)
 gcloud compute scp "$ENV_FILE" "$VM:/tmp/.env" --zone "$ZONE"
 gcloud compute ssh "$VM" --zone "$ZONE" --command "
   set -e
+  command -v docker >/dev/null || { curl -fsSL https://get.docker.com | sudo sh; sudo apt-get install -y git; }
   sudo mkdir -p /srv && cd /srv
   [ -d app ] || sudo git clone -b $BRANCH $REPO app
   cd app && sudo git fetch && sudo git checkout $BRANCH && sudo git pull

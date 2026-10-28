@@ -22,7 +22,7 @@ def _google_on() -> bool:
 
 def _remember(request: Request, response: Response, token: str) -> None:
     # HttpOnly: page scripts can't read it; Strict: other sites can't make the browser send it
-    response.set_cookie(SESSION_COOKIE, token, max_age=users.SESSION_DAYS * 86400, httponly=True, samesite="strict",
+    response.set_cookie(SESSION_COOKIE, token, max_age=users.SESSION_DAYS * 86400, httponly=True, samesite="lax",  # lax: links from other sites still open you signed in; POSTs stay protected
                         secure=request.url.scheme == "https", path="/")
 
 
