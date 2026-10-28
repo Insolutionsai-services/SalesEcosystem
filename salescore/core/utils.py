@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import func, select
+
+
 TRUTHY = {"1", "y", "yes", "true", "granted"}
 
 
@@ -87,3 +90,8 @@ def load_env_file(path: str | Path) -> None:
             key, value = line.split("=", 1)
             if value := value.strip().strip("\"'"):  # blank lines like `KEY=` must not mask other credentials
                 os.environ.setdefault(key.strip(), value)
+
+
+def count(s, model, *where) -> int:
+    """SELECT count(*) FROM model WHERE ..., as an int."""
+    return s.scalar(select(func.count()).select_from(model).where(*where)) or 0

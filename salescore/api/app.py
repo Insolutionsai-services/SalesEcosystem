@@ -6,7 +6,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
 from ..ai.llm import LLMUnavailable
-from ..core.config import MEDIA_DIR, PUBLIC_BASE_URL
+from ..services.plan import PlanLimit
+from ..core.config import CONTACT_URL, DEMO_BOOKING_URL, MEDIA_DIR, PUBLIC_BASE_URL
 from ..core.models import init_db
 from . import auth, routes, webhooks
 
@@ -47,6 +48,13 @@ def media(name: str):
     if not MEDIA_NAME.match(name) or not path.is_file():
         raise HTTPException(404)
     return FileResponse(path, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
+@app.exception_handler(PlanLimit)
+async def plan_limit(request: Request, exc: PlanLimit):
+    """402: the UI shows the trial screen (book a demo / contact us) instead of an error."""
+    return JSONResponse(status_code=402, content={"detail": {"limit": exc.kind, "message": str(exc),
+                                                             "demo_url": DEMO_BOOKING_URL, "contact_url": CONTACT_URL}})
 
 
 @app.exception_handler(LLMUnavailable)

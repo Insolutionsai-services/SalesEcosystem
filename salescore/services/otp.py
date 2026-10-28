@@ -21,12 +21,6 @@ def configured() -> bool:
     return all(os.getenv(k) for k in SMTP_KEYS)
 
 
-def required_for(email: str) -> bool:
-    """Codes protect every sign-in once email is set up, except the shared demo account (it has no real inbox)."""
-    exempt = {norm_email(e) for e in os.getenv("OTP_EXEMPT", "sales@demo.in").split(",")}
-    return configured() and norm_email(email) not in exempt
-
-
 def is_reserved(email: str) -> bool:
     """Demo and exempt addresses can't be claimed through sign-up."""
     e = norm_email(email) or ""

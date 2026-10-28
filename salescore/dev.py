@@ -42,6 +42,7 @@ OLD_DEMO_EMAILS = ("owner@demopaints.in", "sales@demopaints.in", "admin@demo.in"
 
 def _demo_users(s, tenant: Tenant) -> None:
     """Puts the demo sign-ins in place (also on older demo databases) without the real-account password rule."""
+    tenant.plan = "unlimited"  # the shared demo company never hits trial caps
     for old in s.scalars(select(User).where(User.email.in_(OLD_DEMO_EMAILS))):
         s.execute(delete(LoginToken).where(LoginToken.user_id == old.id))
         s.delete(old)

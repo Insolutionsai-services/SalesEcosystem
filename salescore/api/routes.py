@@ -5,18 +5,17 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 
-from ..ai import llm
 from ..analytics import report
 from ..analytics.metrics import analyse
 from ..analytics.team import feed, roster
-from ..analytics.training import brain_status, train_tenant
+from ..analytics.training import train_tenant
 from ..core import agents as agent_config
 from ..core.config import PUBLIC_BASE_URL
 from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone
 from ..marketing import attribution, audience, orchestrator, poster, strategy
-from ..services import activity, catalog, channels, contacts, quotes, receipt, tasks, users
+from ..services import activity, catalog, channels, contacts, plan, quotes, receipt, tasks, users
 from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
 from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/v1")
 @router.post("/tenants", dependencies=[Depends(require_admin)])
 def create_tenant(body: schemas.NewTenant, s=Depends(db)):
     owner = body.model_dump(include={"owner_email", "owner_name", "owner_password"})
-    tenant = Tenant(**body.model_dump(exclude=set(owner)))
+    tenant = Tenant(plan="unlimited", **body.model_dump(exclude=set(owner)))  # created by the platform owner: no trial caps
     with transaction(s):
         s.add(tenant)
         s.flush()
@@ -54,9 +53,7 @@ STARTED_WITH = code_version()
 
 @router.get("/me")
 def me(t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in)):
-    cfg = llm.settings()
     return {"id": t.id, "name": t.name, "user": schemas.user_out(user) if user else None, "channel": setting(t, "channel"), "currency": setting(t, "currency"),
-            "llm": {"provider": cfg.provider, "model": cfg.model, "model_lite": cfg.model_lite}, "brain": brain_status(t),
             "stale": code_version() > STARTED_WITH}  # code changed since start: the UI asks for a restart
 
 
@@ -286,6 +283,12 @@ def quote_receipt(quote_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
 def analytics(days: int | None = 30, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Sales dashboard: enquiries, quotes, orders, payments for the last `days` (omit or 0 = all time) + agent results."""
     return report.report(s, t, days or None)
+
+
+@router.get("/plan")
+def plan_status(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Trial banner: days left, limits and usage, and where to book a demo."""
+    return plan.status(s, t)
 
 
 @router.post("/campaigns")

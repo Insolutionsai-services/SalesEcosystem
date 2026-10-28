@@ -5,6 +5,7 @@ import json
 from ..core.config import AGENT_MAX_TURNS
 from ..core.models import Contact, Tenant
 from ..core.utils import to_json
+from ..services import plan
 from ..services.activity import log_activity
 from ..services.contacts import contact_profile
 from . import llm
@@ -37,6 +38,7 @@ def _tool_message(s, tenant, contact, call: dict) -> dict:
 
 def run(s, tenant: Tenant, job: str, text: str, contact: Contact | None = None, chat=None) -> str | None:
     """Runs one agent job to completion. Returns the final text, or None if the model gave nothing usable."""
+    plan.check(s, tenant, "ai")  # trial companies: a small lifetime number of AI messages
     chat = chat or llm.chat
     tools = schemas_for(job, contact is not None) or None
     profile = to_json(contact_profile(s, contact, PROFILE_HISTORY)) if contact else "n/a"

@@ -13,7 +13,7 @@ from ..core.models import Contact, Tenant
 from ..core.playbook import setting
 from ..core.utils import to_json
 from ..marketing import orchestrator, strategy
-from ..services import catalog, tasks
+from ..services import catalog, plan, tasks
 
 HISTORY = 10  # previous turns kept for context
 
@@ -23,7 +23,8 @@ The team: Data/CRM, Strategy, Creative, Verification, Distribution, Response, An
 You may draft campaigns: drafts go to the manager's Approvals list. You cannot approve, send, change prices or
 contact customers; when something needs the manager, say exactly what and where (Approvals, Conversations, Marketing).
 Answer briefly: a direct answer first, then at most 5 short bullet points. Plain text, no tables.
-Refer to customers by name, never by internal id numbers; show lead scores as percentages."""
+Refer to customers by name, never by internal id numbers; show lead scores as percentages.
+Never name the AI models, providers, algorithms or code behind the team; if asked how it works, explain what each agent does in plain English."""
 
 TOOLS = [
     function_tool("get_overview", "Business snapshot: pipeline, win rate, revenue, response speed, AI usage, hot leads.", {}),
@@ -111,6 +112,7 @@ def _run_tool(s, tenant, call: dict, actions: list) -> dict:
 
 def ask(s, tenant: Tenant, message: str, history: list[dict] | None = None) -> dict:
     """Returns {"reply": str, "actions": [{"type": "campaign", ...}]} for the UI to link."""
+    plan.check(s, tenant, "ai")
     messages = [{"role": "system", "content": SYSTEM.format(company=tenant.name, currency=setting(tenant, "currency"))}]
     messages += [{"role": m["role"], "content": str(m["content"])[:2000]} for m in (history or [])[-HISTORY:]
                  if m.get("role") in ("user", "assistant") and m.get("content")]

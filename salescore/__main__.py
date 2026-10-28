@@ -6,6 +6,7 @@
   python -m salescore models                             list models available from the configured LLM provider
   python -m salescore clean                              delete the local SQLite database and trained models
   python -m salescore user EMAIL [--name N] [--role admin|member] [--company NAME]   add a sign-in (asks for the password)
+  python -m salescore plan COMPANY trial|unlimited       lift (or restore) the 14-day trial caps for one company
 """
 import argparse
 import logging
@@ -47,27 +48,45 @@ def clean() -> None:
     print("Removed the local database and trained models.")
 
 
+def _company(s, name: str | None):
+    """The one company this command is about: by name, or the only one there is."""
+    from sqlalchemy import select
+
+    from .core.models import Tenant
+    companies = s.scalars(select(Tenant).where(Tenant.name == name) if name else select(Tenant)).all()
+    if len(companies) != 1:
+        names = ", ".join(t.name for t in s.scalars(select(Tenant))) or "none yet (run make dev or POST /v1/tenants)"
+        raise SystemExit(f"Pick the company by name. Companies: {names}")
+    return companies[0]
+
+
 def add_user(args) -> None:
     from getpass import getpass
 
-    from sqlalchemy import select
-
-    from .core.models import Session, Tenant, init_db
+    from .core.models import Session, init_db
+    from .services.plan import PlanLimit
     from .services.users import create_user
     init_db()
     with Session() as s:
-        q = select(Tenant).where(Tenant.name == args.company) if args.company else select(Tenant)
-        companies = s.scalars(q).all()
-        if len(companies) != 1:
-            names = ", ".join(t.name for t in s.scalars(select(Tenant))) or "none yet (run make dev or POST /v1/tenants)"
-            raise SystemExit(f"Pick the company with --company. Companies: {names}")
+        company = _company(s, args.company)
         password = getpass("Password (8+ characters): ")
         try:
-            create_user(s, companies[0].id, args.email, args.name, password, args.role)
-        except ValueError as e:
+            create_user(s, company.id, args.email, args.name, password, args.role)
+        except (ValueError, PlanLimit) as e:
             raise SystemExit(str(e)) from None
         s.commit()
-    print(f"{args.email} can now sign in to {companies[0].name} as {args.role}.")
+    print(f"{args.email} can now sign in to {company.name} as {args.role}.")
+
+
+def set_plan(args) -> None:
+    from .core.models import Session, init_db
+    from .services import plan
+    init_db()
+    with Session() as s:
+        company = _company(s, args.company)
+        plan.set_plan(company, args.plan)
+        s.commit()
+        print(f"{company.name}: plan is now {company.plan}.")
 
 
 def main() -> None:
@@ -90,6 +109,9 @@ def main() -> None:
     user.add_argument("--name", default="")
     user.add_argument("--role", default="member", choices=["admin", "member"])
     user.add_argument("--company", help="company name (needed when there is more than one)")
+    pl = sub.add_parser("plan", help="set a company's plan: trial (14 days, small caps) or unlimited")
+    pl.add_argument("company")
+    pl.add_argument("plan", choices=["trial", "unlimited"])
     args = parser.parse_args()
 
     if args.cmd == "clean":
@@ -97,6 +119,9 @@ def main() -> None:
         return
     if args.cmd == "user":
         add_user(args)
+        return
+    if args.cmd == "plan":
+        set_plan(args)
         return
     from . import dev as devtools
     if args.cmd == "dev":

@@ -34,11 +34,9 @@ def auth_options():
 
 @router.post("/auth/login")
 def login(body: schemas.Login, request: Request, response: Response, s=Depends(db)):
+    """Email + password only. The email code is asked at sign-up and used for password resets, not here."""
     with transaction(s):  # 422, not 401: a wrong password is a form error, not a signed-out session
         user = users.check_login(s, body.email, body.password)
-        if otp.required_for(user.email):  # right password: now prove the inbox too
-            otp.send(s, user.email, "login")
-            return {"otp": True, "email": user.email}
         token = users.open_session(s, user)
     _remember(request, response, token)
     return schemas.user_out(user)

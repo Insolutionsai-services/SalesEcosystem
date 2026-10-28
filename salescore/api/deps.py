@@ -7,7 +7,7 @@ from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
 
 from ..core.models import Session, Tenant, User
-from ..services import users
+from ..services import plan, users
 
 DOMAIN_ERRORS = (ValueError, KeyError)
 SESSION_COOKIE = "sc_session"
@@ -38,16 +38,20 @@ def admin_user(user: User = Depends(current_user)) -> User:
     return user
 
 
-def tenant_of(x_api_key: str | None = Header(None), user: User | None = Depends(signed_in), s=Depends(db)) -> Tenant:
-    """Every /v1 call is scoped to one company: a signed-in user's, or the owner of the X-API-Key (integrations)."""
+def tenant_of(request: Request, x_api_key: str | None = Header(None), user: User | None = Depends(signed_in), s=Depends(db)) -> Tenant:
+    """Every /v1 call is scoped to one company: a signed-in user's, or the owner of the X-API-Key (integrations).
+    A company whose trial has ended stays readable; anything that changes data opens the demo screen."""
     if x_api_key:
         tenant = s.scalars(select(Tenant).where(Tenant.api_key == x_api_key)).first()
         if tenant is None:
             raise HTTPException(401, "invalid api key")
-        return tenant
-    if user is None:
+    elif user is None:
         raise HTTPException(401, "please sign in")
-    return s.get(Tenant, user.tenant_id)
+    else:
+        tenant = s.get(Tenant, user.tenant_id)
+    if request.method != "GET" and plan.expired(tenant):
+        raise plan.PlanLimit("trial_over")
+    return tenant
 
 
 def manager(x_api_key: str | None = Header(None), user: User | None = Depends(signed_in)) -> None:

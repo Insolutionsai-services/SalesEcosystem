@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select
 
 from ..core.models import LoginToken, Tenant, User
 from ..core.utils import norm_email, now
+from . import plan
 
 ROLES = ("admin", "member")
 MIN_PASSWORD = 8
@@ -56,6 +57,7 @@ def create_user(s, tenant_id: int, email: str, name: str, password: str, role: s
     if not email or "@" not in email:
         raise ValueError("enter a valid email address")
     _valid_role(role)
+    plan.check(s, s.get(Tenant, tenant_id), "members")  # trial companies: owner + 1
     if s.scalars(select(User).where(User.email == email)).first():
         raise ValueError("that email already has an account")
     user = User(tenant_id=tenant_id, email=email, name=name.strip() or email.split("@")[0], role=role,
@@ -105,7 +107,7 @@ def create_workspace(s, company: str, email: str, name: str, password_hash: str)
     if s.scalars(select(User).where(User.email == email)).first():
         raise ValueError("that email already has an account")
     name = name.strip() or email.split("@")[0]
-    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={})
+    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={})  # plan defaults to a 14-day trial
     s.add(tenant)
     s.flush()
     user = User(tenant_id=tenant.id, email=email, name=name, role="admin", password_hash=password_hash)

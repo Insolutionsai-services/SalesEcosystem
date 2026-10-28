@@ -7,6 +7,7 @@ from ..core.playbook import setting
 from ..core.utils import now
 from ..services import channels, compliance, contacts
 from ..services.activity import log_activity, seen_external_id
+from ..services.plan import PlanLimit
 from ..services.tasks import close_open_tasks, has_open_task
 from . import photo_order
 from .followups import schedule_followup
@@ -59,7 +60,7 @@ def answer(s, tenant: Tenant, contact: Contact, text: str) -> tuple[str, str]:
         return fast.text, "fastpath"
     try:
         reply = agent.run(s, tenant, "reply", text, contact)
-    except llm.LLMUnavailable as e:  # provider down / no key: a human picks it up, the AI continues once it's back
+    except (llm.LLMUnavailable, PlanLimit) as e:  # provider down, no key, or trial cap: a human picks it up
         contacts.handoff(s, tenant, contact, f"AI unavailable: {e}", pause_bot=False)
         return setting(tenant, "handoff_reply"), "fallback"
     if not reply:  # model gave nothing usable: never leave the customer hanging

@@ -36,6 +36,8 @@ class Tenant(Base):
     playbook: Mapped[dict] = mapped_column(JSON, default=dict)
     wa_phone_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     wa_token: Mapped[str | None] = mapped_column(Text)  # ponytail: plaintext; encrypt (KMS/pgcrypto) before real clients
+    plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | unlimited; see services/plan.py
+    plan_started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
 class User(Base):
@@ -213,3 +215,6 @@ def add_missing_columns(eng) -> None:
             for col in table.columns:
                 if col.name not in have:
                     conn.execute(sql(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col.type.compile(eng.dialect)}"))
+        # companies from before plans existed were created by the platform owner: no trial caps (`salescore plan` can change it)
+        tenants = Tenant.__table__
+        conn.execute(tenants.update().where(tenants.c.plan.is_(None)).values(plan="unlimited", plan_started_at=now()))
