@@ -127,7 +127,7 @@ make dev
 ```
 
 This installs all libraries (`uv sync`), creates `.env` from `.env.example`, creates the database, seeds a
-demo company (Demo Paints & Co: catalog, 8 leads, order history, FAQ), **trains its local models**, starts the
+demo company (GYC Paints & Co: catalog, 8 leads, order history, FAQ), **trains its local models**, starts the
 API and opens the UI in your browser, already logged in. Put `GEMINI_API_KEY` in `.env` (or switch to Ollama)
 for LLM replies; routine questions, the dashboard, catalog, imports, analytics and queue work without it.
 
