@@ -79,7 +79,7 @@
   .brand { display: flex; align-items: center; gap: 11px; padding: 20px 18px 16px; }
   .brand-mark { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--human); color: var(--on-human);
     font-family: var(--font-display); font-weight: 700; font-size: .95rem; flex: none; }
-  .brand strong { font-family: var(--font-display); font-size: 1.05rem; display: block; line-height: 1.2; }
+  .brand strong { font-family: var(--font-display); font-size: 1.05rem; display: block; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   .brand div span { font-size: .76rem; color: var(--rail-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   .nav { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; }
   .nav-label { font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--rail-muted); padding: 14px 10px 6px; font-weight: 600; }
@@ -593,7 +593,7 @@
 <body>
 <div class="shell">
   <aside class="rail">
-    <div class="brand"><span class="brand-mark" id="brandMark" aria-hidden="true">G</span><div><strong>GYC</strong><span id="tenantName">AI sales team</span></div></div>
+    <div class="brand"><span class="brand-mark" id="brandMark" aria-hidden="true">G</span><div><strong id="tenantName">Sales workspace</strong><span>AI sales team</span></div></div>
     <nav class="nav" id="nav" aria-label="Main">
       <div class="nav-label">Today</div>
       <button data-page="home"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Command centre</span></button>
@@ -2270,6 +2270,7 @@ async function boot() {
     renderUser(me.user);
     state.currency = me.currency;
     $("#tenantName").textContent = me.name;
+    document.title = me.name;
     $("#brandMark").textContent = (me.name.match(/[A-Za-z]/) || ["G"])[0].toUpperCase();
     $("#today").textContent = new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
     $("#staleBanner").hidden = !me.stale;
