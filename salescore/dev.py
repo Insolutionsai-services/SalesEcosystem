@@ -33,7 +33,8 @@ from .services.users import check_password, hash_password
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEMO_DIR = PACKAGE_DIR / "demo"
-DEMO_TENANT = "Demo Paints & Co"
+DEMO_TENANT = "GYC Paints & Co"
+OLD_DEMO_TENANT = "Demo Paints & Co"
 # (email, name, role, password). The sales lead runs everything (role "admin" internally).
 # Short password on purpose for local demos; real accounts need 8+ characters.
 DEMO_USERS = [("sales@demo.in", "Ravi (Sales lead)", "admin", "sales")]
@@ -139,7 +140,7 @@ def seed_demo() -> Tenant:
     """Creates the demo tenant with catalog, leads and order history once; returns it on later runs."""
     init_db()
     with Session() as s:
-        tenant = s.scalars(select(Tenant).where(Tenant.name == DEMO_TENANT)).first()
+        tenant = s.scalars(select(Tenant).where(Tenant.name.in_((DEMO_TENANT, OLD_DEMO_TENANT)))).first()
         if tenant is None:
             tenant = Tenant(name=DEMO_TENANT, playbook=json.loads(_demo("playbook.json")))
             s.add(tenant)
@@ -151,6 +152,7 @@ def seed_demo() -> Tenant:
             train_tenant(s, tenant)
             analyse(s, tenant)  # RFM segments + lead scores, so Strategy has audiences from the start
             s.commit()
+        tenant.name = DEMO_TENANT  # older demo databases carry the old name
         _demo_users(s, tenant)
         _demo_company(s, tenant)
         _demo_recent(s, tenant)
