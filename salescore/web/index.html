@@ -457,7 +457,7 @@
   .login-card form label { margin-top: 12px; }
   .up-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
   .up-pair > div { display: flex; flex-direction: column; min-width: 0; }
-  @media (max-height: 820px) { .login { overflow-y: auto; align-content: start; padding-top: 24px; } .login-foot { position: static; grid-column: 1 / -1; text-align: center; padding-bottom: 16px; } }
+  @media (max-height: 820px) { .login { align-items: safe center; padding-block: 24px; } .login-foot { position: static; grid-column: 1 / -1; text-align: center; padding-bottom: 16px; } }
   .login-card .link { align-self: flex-end; margin-top: 8px; border: 0; background: none; padding: 0; font: inherit; font-size: .82rem; font-weight: 600; color: var(--agent); cursor: pointer; }
   .login-card .link:hover { text-decoration: underline; }
   .login-foot a { color: var(--agent); font-weight: 600; text-decoration: none; }
