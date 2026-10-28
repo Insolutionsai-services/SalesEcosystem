@@ -457,7 +457,11 @@
   .login-card form label { margin-top: 12px; }
   .up-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
   .up-pair > div { display: flex; flex-direction: column; min-width: 0; }
-  @media (max-height: 820px) { .login { overflow-y: auto; align-content: start; padding-top: 24px; } .login-foot { display: none; } }
+  @media (max-height: 820px) { .login { overflow-y: auto; align-content: start; padding-top: 24px; } .login-foot { position: static; grid-column: 1 / -1; text-align: center; padding-bottom: 16px; } }
+  .login-card .link { align-self: flex-end; margin-top: 8px; border: 0; background: none; padding: 0; font: inherit; font-size: .82rem; font-weight: 600; color: var(--agent); cursor: pointer; }
+  .login-card .link:hover { text-decoration: underline; }
+  .login-foot a { color: var(--agent); font-weight: 600; text-decoration: none; }
+  .form-ok { margin-top: 14px; color: var(--agent); background: var(--agent-soft); border-radius: var(--r-sm); padding: 9px 12px; font-size: .85rem; }
   .otp-row { display: flex; justify-content: space-between; margin-top: 10px; }
   #otpCode { letter-spacing: .4em; text-align: center; font-size: 1.3rem; }
   .login-foot { position: fixed; left: clamp(20px, 6vw, 88px); bottom: 22px; font-size: .76rem; color: var(--muted); }
@@ -893,7 +897,9 @@
       <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.in" required>
       <label for="loginPass">Password</label>
       <div class="pw"><input id="loginPass" type="password" autocomplete="current-password" required><button type="button" id="pwShow" aria-label="Show password">Show</button></div>
+      <button type="button" class="link in-only" id="forgotBtn">Forgot your password?</button>
       <div class="form-error" id="loginError" role="alert" hidden></div>
+      <div class="form-ok" id="loginOk" role="status" hidden></div>
       <button class="btn human" type="submit" id="loginBtn">Sign in</button>
     </form>
     <form id="otpForm" novalidate hidden>
@@ -903,9 +909,9 @@
       <button class="btn human" type="submit" id="otpBtn">Verify and continue</button>
       <div class="otp-row"><button type="button" class="btn ghost sm" id="otpResend">Send a new code</button><button type="button" class="btn ghost sm" id="otpBack">Back</button></div>
     </form>
-    <p class="tiny muted" style="margin:18px 0 0">Need help or a demo? <a href="mailto:insolutionsai@gmail.com">Contact us</a> at insolutionsai@gmail.com. Forgot your password? Ask your sales lead. <a href="https://www.gamyan.space" target="_blank" rel="noopener">Visit www.gamyan.space</a></p>
+    <p class="tiny muted" style="margin:18px 0 0">Need help or a demo? <a href="mailto:insolutionsai@gmail.com">Contact us</a>.</p>
   </div>
-  <div class="login-foot">Powered by GYC · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Visit www.gamyan.space</a></div>
+  <div class="login-foot">Powered by GYC · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Explore us →</a></div>
 </section>
 
 <div class="overlay" id="pwOverlay" hidden>
@@ -2042,6 +2048,8 @@ function setMode(mode) {
   authMode = mode; const up = mode === "up";
   $$(".auth-tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mode === mode)));
   $$(".up-only").forEach((el) => (el.hidden = !up));
+  $$(".in-only").forEach((el) => (el.hidden = up));
+  $("#loginOk").hidden = true;
   $("#authTitle").textContent = up ? "Create your account" : "Welcome back";
   $("#authSub").textContent = up ? "Start your own workspace in a minute." : "Sign in to continue.";
   $("#loginBtn").textContent = up ? "Create account" : "Sign in";
@@ -2062,6 +2070,15 @@ function backToForm() {
   setMode(authMode);
 }
 $("#otpBack").onclick = backToForm;
+$("#forgotBtn").onclick = () => {
+  const email = $("#loginEmail").value.trim();
+  if (!email) { showErr("#loginError", "Enter your email above, then click Forgot your password."); $("#loginEmail").focus(); return; }
+  busy($("#forgotBtn"), async () => {
+    try { await api("/v1/auth/forgot", { method: "POST", body: { email } }); } catch (err) { showErr("#loginError", err.message); return; }
+    $("#loginError").hidden = true; $("#loginOk").textContent = `We emailed a new password to ${email}. Sign in with it, then change it from your profile menu.`; $("#loginOk").hidden = false;
+    $("#loginPass").value = ""; $("#loginPass").focus();
+  });
+};
 $("#googleBtn").onclick = () => { location.href = "/v1/auth/google"; };
 $("#loginForm").addEventListener("submit", (e) => {
   e.preventDefault();

@@ -114,6 +114,16 @@ def create_workspace(s, company: str, email: str, name: str, password_hash: str)
     return user
 
 
+def forgot_password(s, email: str) -> tuple[User, str]:
+    """Sets a fresh temporary password and returns it, so it can be emailed; every other device is signed out."""
+    user = find(s, email)
+    if user is None:
+        raise ValueError("we didn't find an account with this email; try another account or create your account")
+    temp = secrets.token_urlsafe(9)
+    update_user(s, user, password=temp)
+    return user, temp
+
+
 def find(s, email: str) -> User | None:
     return s.scalars(select(User).where(User.email == norm_email(email))).first()
 

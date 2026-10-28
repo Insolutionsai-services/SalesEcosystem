@@ -64,6 +64,20 @@ def sign_up(body: schemas.SignUp, request: Request, response: Response, s=Depend
     return schemas.user_out(user)
 
 
+@router.post("/auth/forgot")
+def forgot_password(body: schemas.EmailOnly, s=Depends(db)):
+    """Emails a new temporary password. Needs the SMTP_* settings; the person changes it from their profile menu afterwards."""
+    with transaction(s):
+        if not otp.configured():
+            raise ValueError("password reset by email isn't set up; ask your sales lead for a new password")
+        otp.throttle("password reset", 20)
+        user, temp = users.forgot_password(s, body.email)
+        otp.mail(user.email, "Your new password",
+                 f"Hi {user.name},\n\nYour new password is: {temp}\n\nSign in with it, then change it from your profile menu. "
+                 "If you didn't ask for this, contact your sales lead.")
+    return {"sent": user.email}
+
+
 @router.post("/auth/verify")
 def verify_code(body: schemas.VerifyCode, request: Request, response: Response, s=Depends(db)):
     with transaction(s):

@@ -33,33 +33,42 @@ def is_reserved(email: str) -> bool:
     return e.endswith("@demo.in") or e in {norm_email(x) for x in os.getenv("OTP_EXEMPT", "sales@demo.in").split(",")}
 
 
-_signups: list = []  # ponytail: per-process; with several workers move it to the DB
+_recent: dict[str, list] = {}  # ponytail: per-process; with several workers move it to the DB
+
+
+def throttle(kind: str, limit: int) -> None:
+    """At most `limit` events of this kind per hour, so nobody can mass-create workspaces or hammer password resets."""
+    at, bucket = now(), _recent.setdefault(kind, [])
+    bucket[:] = [t for t in bucket if t > at - timedelta(hours=1)]
+    if len(bucket) >= limit:
+        raise ValueError(f"too many {kind}s right now; try again later or contact us")
+    bucket.append(at)
 
 
 def throttle_signups(limit: int = int(os.getenv("SIGNUPS_PER_HOUR", "20"))) -> None:
-    """Sign-ups without an email check are capped, so nobody can mass-create workspaces."""
-    at = now()
-    _signups[:] = [t for t in _signups if t > at - timedelta(hours=1)]
-    if len(_signups) >= limit:
-        raise ValueError("too many sign-ups right now; try again later or contact us")
-    _signups.append(at)
+    throttle("sign-up", limit)
 
 
 def _hash(email: str, code: str) -> str:
     return hashlib.sha256(f"{email}:{code}:{os.getenv('OTP_SECRET', '')}".encode()).hexdigest()
 
 
-def _mail(to: str, code: str) -> None:
+def mail(to: str, subject: str, text: str) -> None:
+    """One plain-text email over the SMTP_* settings (sign-in codes, new passwords)."""
     msg = EmailMessage()
-    msg["From"], msg["To"], msg["Subject"] = os.environ["SMTP_FROM"], to, f"Your sign-in code: {code}"
-    msg.set_content(f"Your verification code is {code}.\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.")
+    msg["From"], msg["To"], msg["Subject"] = os.environ["SMTP_FROM"], to, subject
+    msg.set_content(text)
     try:
         with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.getenv("SMTP_PORT", "587")), timeout=20) as smtp:
             smtp.starttls()
             smtp.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
             smtp.send_message(msg)
     except (smtplib.SMTPException, OSError) as e:
-        raise ValueError("we couldn't send the code email; please try again in a moment") from e
+        raise ValueError("we couldn't send the email; please try again in a moment") from e
+
+
+def _mail(to: str, code: str) -> None:
+    mail(to, f"Your sign-in code: {code}", f"Your verification code is {code}.\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.")
 
 
 def send(s, email: str, purpose: str, data: dict | None = None) -> None:
