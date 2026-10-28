@@ -5,6 +5,7 @@ x-app: &app
   env_file: .env
   environment:
     DATABASE_URL: postgresql+psycopg://sales:${POSTGRES_PASSWORD:-sales}@db:5432/sales
+    FORWARDED_ALLOW_IPS: "*"   # trust the proxy's X-Forwarded-Proto so sign-in cookies are marked Secure
   volumes: ["./data/app:/data"]   # trained models + posters
   mem_limit: 600m                  # hard cap per container; the VM has 1 GB + 2 GB swap
   depends_on:

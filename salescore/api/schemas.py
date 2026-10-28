@@ -53,6 +53,10 @@ class SignUp(BaseModel):
     password: str
 
 
+class EmailOnly(BaseModel):
+    email: str
+
+
 class VerifyCode(BaseModel):
     email: str
     code: str

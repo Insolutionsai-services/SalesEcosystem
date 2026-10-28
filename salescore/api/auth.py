@@ -22,7 +22,7 @@ def _google_on() -> bool:
 
 def _remember(request: Request, response: Response, token: str) -> None:
     # HttpOnly: page scripts can't read it; Strict: other sites can't make the browser send it
-    response.set_cookie(SESSION_COOKIE, token, max_age=users.SESSION_DAYS * 86400, httponly=True, samesite="strict",
+    response.set_cookie(SESSION_COOKIE, token, max_age=users.SESSION_DAYS * 86400, httponly=True, samesite="lax",  # lax: links from other sites still open you signed in; POSTs stay protected
                         secure=request.url.scheme == "https", path="/")
 
 
@@ -62,6 +62,20 @@ def sign_up(body: schemas.SignUp, request: Request, response: Response, s=Depend
         token = users.open_session(s, user)
     _remember(request, response, token)
     return schemas.user_out(user)
+
+
+@router.post("/auth/forgot")
+def forgot_password(body: schemas.EmailOnly, s=Depends(db)):
+    """Emails a new temporary password. Needs the SMTP_* settings; the person changes it from their profile menu afterwards."""
+    with transaction(s):
+        if not otp.configured():
+            raise ValueError("password reset by email isn't set up; ask your sales lead for a new password")
+        otp.throttle("password reset", 20)
+        user, temp = users.forgot_password(s, body.email)
+        otp.mail(user.email, "Your new password",
+                 f"Hi {user.name},\n\nYour new password is: {temp}\n\nSign in with it, then change it from your profile menu. "
+                 "If you didn't ask for this, contact your sales lead.")
+    return {"sent": user.email}
 
 
 @router.post("/auth/verify")

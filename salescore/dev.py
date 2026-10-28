@@ -59,8 +59,15 @@ def _demo_users(s, tenant: Tenant) -> None:
 DEMO_LEADS = ["Arun", "Bhavya", "Charan", "Deepa", "Elango", "Farah", "Gokul", "Harini", "Imran", "Janani", "Karthik",
               "Lavanya", "Mohan", "Nisha", "Om Prakash", "Pooja", "Rahul", "Sangeetha", "Tamil", "Uma", "Vijay", "Yamuna",
               "Zaheer", "Anitha", "Bala", "Divya", "Ganesh", "Kavya"]
-DEMO_ASKS = ["price of white emulsion 20L?", "need waterproofing for terrace", "do you deliver to Velachery?",
-             "quote for 10 tins exterior paint", "which putty for new walls?", "is the primer in stock?"]
+DEMO_REPLIES = {  # what the Response agent answered (demo only)
+    "price of white emulsion 20L?": "Silk Interior Emulsion White 20L is ₹7,198 incl. GST. Want me to send a quote?",
+    "need waterproofing for terrace": "Roof Waterproofing Coat 20L covers ~60 sq m per coat. Shall I quote 2 coats for your terrace size?",
+    "do you deliver to Velachery?": "Yes, we deliver to Velachery, usually within 2 working days. Free above ₹5,000.",
+    "quote for 10 tins exterior paint": "WeatherShield Exterior Emulsion 20L × 10 comes to ₹92,040 incl. GST. Sending the quote now.",
+    "which putty for new walls?": "For new plaster, Wall Putty White 40kg: two coats before primer. One bag covers ~35 sq m.",
+    "is the primer in stock?": "Interior Wall Primer 10L is in stock. Shall I reserve a few tins for you?",
+}
+DEMO_ASKS = list(DEMO_REPLIES)
 
 
 def _demo_company(s, tenant: Tenant) -> None:
@@ -80,6 +87,9 @@ def _demo_recent(s, tenant: Tenant) -> None:
     for won in s.scalars(select(Quote).where(Quote.tenant_id == tenant.id, Quote.status == "won", Quote.paid_amount.is_(None))):
         won.closed_at, won.paid_amount, won.paid_at = won.created_at, won.total, won.created_at  # older demo databases
     if s.scalar(select(Contact.id).where(Contact.tenant_id == tenant.id, Contact.phone == "919000050000")):
+        for reply in s.scalars(select(Activity).where(Activity.tenant_id == tenant.id, Activity.body == "(demo reply)")):  # older demo databases
+            ask = s.scalars(select(Activity.body).where(Activity.contact_id == reply.contact_id, Activity.type == "msg_in")).first()
+            reply.body = DEMO_REPLIES.get(ask, "Thanks for reaching out. Let me check and get back to you shortly.")
         s.commit()
         return  # already added
     rnd, items, at_now = random.Random(7), list(s.scalars(select(Item).where(Item.tenant_id == tenant.id, Item.price >= 500))), now()
@@ -91,8 +101,9 @@ def _demo_recent(s, tenant: Tenant) -> None:
                     last_inbound_at=came, attrs={"city": rnd.choice(["Chennai", "Chennai", "Madurai", "Coimbatore"])})
         s.add(c)
         s.flush()
-        s.add(Activity(tenant_id=tenant.id, contact_id=c.id, type="msg_in", channel="whatsapp", body=rnd.choice(DEMO_ASKS), at=came))
-        s.add(Activity(tenant_id=tenant.id, contact_id=c.id, type="msg_out", channel="whatsapp", body="(demo reply)", at=came + timedelta(seconds=4),
+        ask = rnd.choice(DEMO_ASKS)
+        s.add(Activity(tenant_id=tenant.id, contact_id=c.id, type="msg_in", channel="whatsapp", body=ask, at=came))
+        s.add(Activity(tenant_id=tenant.id, contact_id=c.id, type="msg_out", channel="whatsapp", body=DEMO_REPLIES[ask], at=came + timedelta(seconds=4),
                        data={"via": rnd.choice(["fastpath", "fastpath", "llm"]), "kind": "reply"}))
         if rnd.random() > .62 or not items:
             continue

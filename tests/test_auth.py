@@ -128,3 +128,16 @@ def test_without_email_set_up_sign_in_is_plain_and_sign_up_is_direct(client, mon
 def test_demo_account_skips_the_code(client, mail):
     company(client, "Demo Paints", "sales@demo.in")
     assert login(client, "sales@demo.in", "owner-pass-1").json()["email"] == "sales@demo.in" and "sales@demo.in" not in mail
+
+
+def test_forgot_password_emails_a_new_one(client, mail, monkeypatch):
+    from salescore.services import otp
+    sent = {}
+    monkeypatch.setattr(otp, "mail", lambda to, subject, text: sent.__setitem__(to, text))
+    company(client, "Acme Paints", "boss@acme.in")
+    r = client.post("/v1/auth/forgot", json={"email": "nobody@acme.in"})
+    assert r.status_code == 422 and "create your account" in r.json()["detail"]
+    assert client.post("/v1/auth/forgot", json={"email": "boss@acme.in"}).json() == {"sent": "boss@acme.in"}
+    new = sent["boss@acme.in"].split("password is: ")[1].split()[0]
+    assert login(client, "boss@acme.in", "owner-pass-1").status_code != 200  # old one no longer works
+    assert login(client, "boss@acme.in", new).status_code == 200
