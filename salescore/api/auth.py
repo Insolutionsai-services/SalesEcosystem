@@ -51,12 +51,12 @@ def sign_up(body: schemas.SignUp, request: Request, response: Response, s=Depend
             raise ValueError(f"passwords need at least {users.MIN_PASSWORD} characters")
         if "@" not in body.email or users.find(s, body.email) or otp.is_reserved(body.email):
             raise ValueError("enter a valid email address that has no account yet")
-        data = {"name": body.name, "company": body.company, "password_hash": users.hash_password(body.password)}
+        data = {"name": body.name, "company": body.company, "password_hash": users.hash_password(body.password), "source": body.source[:120]}
         if otp.configured():
             otp.send(s, body.email, "signup", data)
             return {"otp": True, "email": body.email.strip().lower()}
         otp.throttle_signups()
-        user = users.create_workspace(s, data["company"], body.email, data["name"], data["password_hash"])
+        user = users.create_workspace(s, data["company"], body.email, data["name"], data["password_hash"], data["source"])
         token = users.open_session(s, user)
     _remember(request, response, token)
     return schemas.user_out(user)
@@ -81,7 +81,7 @@ def verify_code(body: schemas.VerifyCode, request: Request, response: Response, 
     with transaction(s):
         purpose, data = otp.verify(s, body.email, body.code)
         if purpose == "signup":
-            user = users.create_workspace(s, data["company"], body.email, data["name"], data["password_hash"])
+            user = users.create_workspace(s, data["company"], body.email, data["name"], data["password_hash"], data.get("source", ""))
         else:
             user = users.find(s, body.email)
             if user is None:

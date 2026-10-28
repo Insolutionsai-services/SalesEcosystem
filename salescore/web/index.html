@@ -2114,7 +2114,7 @@ $("#loginForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const email = $("#loginEmail").value.trim(), password = $("#loginPass").value, up = authMode === "up";
   if (!email || !password) { showErr("#loginError", "Enter your email and password."); return; }
-  const req = up ? ["/v1/auth/signup", { name: $("#signName").value, company: $("#signCompany").value, email, password }]
+  const req = up ? ["/v1/auth/signup", { name: $("#signName").value, company: $("#signCompany").value, email, password, source: store.get("sc_src") || "" }]
                  : ["/v1/auth/login", { email, password }];
   busy($("#loginBtn"), async () => {
     let res;
@@ -2263,6 +2263,9 @@ let poller;
 async function boot() {
   const url = new URL(location.href);
   if (url.searchParams.has("key")) { url.searchParams.delete("key"); history.replaceState(null, "", url); }  // old links
+  if (url.searchParams.has("from")) {  // a link from an outreach mail: remember its tags until the person creates the account
+    store.set("sc_src", [...url.searchParams].map(([k, v]) => k === "from" ? v : `${k}=${v}`).join(" ").slice(0, 120));
+  }
   try { localStorage.removeItem("sc_key"); } catch { /* private mode */ }  // keys no longer live in the browser
   try {
     const me = await api("/v1/me");

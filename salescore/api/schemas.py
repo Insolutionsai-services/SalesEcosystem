@@ -51,6 +51,7 @@ class SignUp(BaseModel):
     company: str = ""
     email: str
     password: str
+    source: str = ""  # the ?from=... tags of the link that brought them, if any
 
 
 class EmailOnly(BaseModel):

@@ -99,7 +99,7 @@ def sign_in(s, email: str, password: str) -> tuple[User, str]:
     return user, open_session(s, user)
 
 
-def create_workspace(s, company: str, email: str, name: str, password_hash: str) -> User:
+def create_workspace(s, company: str, email: str, name: str, password_hash: str, source: str = "") -> User:
     """Self-service sign-up: a new, empty company with this person as its sales lead."""
     email = norm_email(email)
     if not email or "@" not in email:
@@ -107,7 +107,7 @@ def create_workspace(s, company: str, email: str, name: str, password_hash: str)
     if s.scalars(select(User).where(User.email == email)).first():
         raise ValueError("that email already has an account")
     name = name.strip() or email.split("@")[0]
-    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={})  # plan defaults to a 14-day trial
+    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={}, source=source or None)  # plan defaults to a 14-day trial
     s.add(tenant)
     s.flush()
     user = User(tenant_id=tenant.id, email=email, name=name, role="admin", password_hash=password_hash)

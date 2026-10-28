@@ -38,6 +38,7 @@ class Tenant(Base):
     wa_token: Mapped[str | None] = mapped_column(Text)  # ponytail: plaintext; encrypt (KMS/pgcrypto) before real clients
     plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | unlimited; see services/plan.py
     plan_started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    source: Mapped[str | None] = mapped_column(String(120))  # how a self-created company found us, e.g. "mail city=pune kind=smart"
 
 
 class User(Base):
