@@ -250,7 +250,7 @@ def outreach_summary(t: Tenant = Depends(tenant_of), s=Depends(db)):
     leads = s.scalars(select(Contact).where(Contact.tenant_id == t.id, Contact.source == "outreach").order_by(Contact.id)).all()
     acts = s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.channel == "email", Activity.contact_id.in_([c.id for c in leads]))).all() if leads else []
     out = {c.id: sum(1 for a in acts if a.contact_id == c.id and a.type == "msg_out") for c in leads}
-    companies = [{"name": c.name, "email": c.email, "kind": c.attrs.get("kind") or "general", "city": c.attrs.get("city") or "",
+    companies = [{"id": c.id, "name": c.name, "email": c.email, "kind": c.attrs.get("kind") or "general", "city": c.attrs.get("city") or "",
                   "mails": out[c.id], "replied": bool(c.last_inbound_at) and not c.opted_out, "stopped": c.opted_out} for c in leads]
     return {"companies_mailed": len(leads), "mails_sent": sum(out.values()),
             "replied": [x["name"] for x in companies if x["replied"]], "stopped": [x["name"] for x in companies if x["stopped"]],

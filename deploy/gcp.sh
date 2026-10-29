@@ -34,8 +34,8 @@ IP=$(gcloud compute instances describe "$VM" --zone "$ZONE" --format 'value(netw
 ENV_FILE=${ENV_FILE:-.env}
 [ -f "$ENV_FILE" ] || { echo "create $ENV_FILE first (copy .env.example; set ADMIN_KEY, OPENROUTER_API_KEY, SMTP_*, PUBLIC_BASE_URL=http://$IP)"; exit 1; }
 DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d= -f2)
-gcloud compute scp "$ENV_FILE" "$VM:/tmp/.env" --zone "$ZONE"
-gcloud compute ssh "$VM" --zone "$ZONE" --command "
+gcloud compute scp "$ENV_FILE" "$VM:/tmp/.env" --zone "$ZONE" ${IAP:+--tunnel-through-iap}  # IAP=1: through Google's tunnel when port 22 is blocked
+gcloud compute ssh "$VM" --zone "$ZONE" ${IAP:+--tunnel-through-iap} --quiet --command "
   set -e
   command -v docker >/dev/null || { curl -fsSL https://get.docker.com | sudo sh; sudo apt-get install -y git; }
   sudo mkdir -p /srv && cd /srv

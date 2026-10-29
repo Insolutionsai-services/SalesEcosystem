@@ -895,7 +895,7 @@
       <div class="rule"></div>
       <p class="login-tag">Trusted around the clock. Every reply earns a customer. It predicts your true clients.</p>
     </div>
-    <div class="login-foot">Powered by Gamyan · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Explore us →</a></div>
+    <div class="login-foot">Powered by Gamyan · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Explore us →</a> · <a href="https://www.gamyan.space/legal#privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://www.gamyan.space/legal#terms" target="_blank" rel="noopener">Terms</a></div>
   </div>
   <div class="login-main">
   <div class="login-card">
@@ -1135,6 +1135,8 @@ async function refreshNeeds() {
   const el = $("#needsCount"); el.hidden = !n; el.textContent = n;
   return { approvals, handoffs, n };
 }
+$("#outreachRows").addEventListener("click", (e) => { const r = e.target.closest("tr[data-contact]"); if (r) openContact(Number(r.dataset.contact)); });
+
 async function renderOutreach() {  // companies the outreach mailed (synced in daily at noon); hidden for companies that have none
   const o = await api("/v1/outreach").catch(() => null);
   const panel = $("#outreachPanel");
@@ -1144,7 +1146,7 @@ async function renderOutreach() {  // companies the outreach mailed (synced in d
   const stats = [[o.companies_mailed, "companies mailed"], [o.mails_sent, "mails sent"], [o.replied.length, "replied"], [o.stopped.length, "asked to stop"]];
   $("#outreachStats").innerHTML = stats.map(([n, k]) => `<div class="stat"><b>${n}</b><span>${k}</span></div>`).join("");
   const status = (c) => c.stopped ? pill("stop", "bad") : c.replied ? pill("replied", "good") : pill(c.mails > 1 ? "following up" : "mailed", "agent");
-  $("#outreachRows").innerHTML = o.companies.map((c) => `<tr><td>${esc(c.name)}<div class="tiny muted">${esc(c.email)}</div></td><td>${esc(nice(c.kind))}</td><td>${esc(c.city || "–")}</td><td class="r">${c.mails}</td><td>${status(c)}</td></tr>`).join("");
+  $("#outreachRows").innerHTML = o.companies.map((c) => `<tr data-contact="${c.id}" style="cursor:pointer" title="Open the mails and replies"><td>${esc(c.name)}<div class="tiny muted">${esc(c.email)}</div></td><td>${esc(nice(c.kind))}</td><td>${esc(c.city || "–")}</td><td class="r">${c.mails}</td><td>${status(c)}</td></tr>`).join("");
 }
 
 loaders.home = async () => {
