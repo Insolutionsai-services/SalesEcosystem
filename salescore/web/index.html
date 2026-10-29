@@ -663,6 +663,11 @@
             <p class="small" id="insights" style="white-space:pre-wrap;margin:0">Run the daily analysis to get this week's recommendations.</p>
           </div>
         </div>
+        <div class="panel" id="outreachPanel" hidden>
+          <div class="panel-head"><h2>Outreach</h2><span class="small muted" id="outreachUpdated"></span></div>
+          <div class="stats" id="outreachStats" style="margin-bottom:12px"></div>
+          <div style="overflow:auto"><table><thead><tr><th>Company</th><th>Business</th><th>City</th><th class="r">Mails</th><th>Status</th></tr></thead><tbody id="outreachRows"></tbody></table></div>
+        </div>
       </section>
 
       <!-- Needs you -->
@@ -1130,7 +1135,20 @@ async function refreshNeeds() {
   const el = $("#needsCount"); el.hidden = !n; el.textContent = n;
   return { approvals, handoffs, n };
 }
+async function renderOutreach() {  // companies the outreach mailed (synced in daily at noon); hidden for companies that have none
+  const o = await api("/v1/outreach").catch(() => null);
+  const panel = $("#outreachPanel");
+  if (!o || !o.companies_mailed) { panel.hidden = true; return; }
+  panel.hidden = false;
+  $("#outreachUpdated").textContent = o.last_sent_at ? `last mail ${when(o.last_sent_at)}` : "";
+  const stats = [[o.companies_mailed, "companies mailed"], [o.mails_sent, "mails sent"], [o.replied.length, "replied"], [o.stopped.length, "asked to stop"]];
+  $("#outreachStats").innerHTML = stats.map(([n, k]) => `<div class="stat"><b>${n}</b><span>${k}</span></div>`).join("");
+  const status = (c) => c.stopped ? pill("stop", "bad") : c.replied ? pill("replied", "good") : pill(c.mails > 1 ? "following up" : "mailed", "agent");
+  $("#outreachRows").innerHTML = o.companies.map((c) => `<tr><td>${esc(c.name)}<div class="tiny muted">${esc(c.email)}</div></td><td>${esc(nice(c.kind))}</td><td>${esc(c.city || "–")}</td><td class="r">${c.mails}</td><td>${status(c)}</td></tr>`).join("");
+}
+
 loaders.home = async () => {
+  renderOutreach();
   if (!$("#kpis").children.length) { $("#kpis").innerHTML = skeletons(5, 86).replaceAll('style="height:86px;margin:6px 0"', 'style="height:86px"'); $("#feed").innerHTML = skeletons(5, 34); }
   const [m, team, feed, needs, plays] = await Promise.all([api("/v1/insights"), api("/v1/team"), api("/v1/feed?limit=30"),
     refreshNeeds(), api("/v1/marketing/recommendations"), loadContacts()]);

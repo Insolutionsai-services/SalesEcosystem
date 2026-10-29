@@ -123,3 +123,14 @@ def test_stock_changes_are_logged_and_items_can_be_deleted(s, tenant):
     s.flush()
     assert len(s.scalars(select(Activity).where(Activity.type == "stock")).all()) == len(log) + 1  # only the add
     assert "PNT-WE-10" not in catalog.get_items(s, tenant.id, ["PNT-WE-10"])
+
+
+def test_sample_addresses_are_never_really_mailed(monkeypatch):
+    """Demo contacts use example.com; with SMTP configured they still stay in the app instead of bouncing at Gmail."""
+    from salescore.core.models import Contact, Tenant
+    from salescore.services import channels, otp
+    for k in otp.SMTP_KEYS:
+        monkeypatch.setenv(k, "x")
+    t = Tenant(name="Demo", playbook={})
+    assert channels.pick(t, Contact(email="anand@example.com")) == "console"
+    assert channels.pick(t, Contact(email="anand@anandbuilders.in")) == "email"

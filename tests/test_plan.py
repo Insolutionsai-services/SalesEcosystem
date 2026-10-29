@@ -76,7 +76,7 @@ def test_email_cap_blocks_the_send_instead_of_crashing_the_sender(s, monkeypatch
     monkeypatch.setattr(channels, "_email", lambda t, c, text, image=None: sent.append(c.email))
     owner = users.create_workspace(s, "Meera Interiors", "meera@studio.in", "Meera", users.hash_password("meera-pass-1"))
     tenant = s.get(Tenant, owner.tenant_id)
-    c = Contact(tenant_id=tenant.id, name="Arun", email="arun@example.in", last_inbound_at=now())  # inside the reply window
+    c = Contact(tenant_id=tenant.id, name="Arun", email="arun@arunstores.in", last_inbound_at=now())  # inside the reply window
     s.add(c)
     s.flush()
     results = [channels.send(s, tenant, c, f"hello {i}", "reply", via="human") for i in range(4)]

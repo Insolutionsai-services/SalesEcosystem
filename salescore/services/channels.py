@@ -91,9 +91,17 @@ def pick(tenant: Tenant, contact: Contact, channel: str | None = None) -> str:
     channel, ok = channel or setting(tenant, "channel"), ready(tenant)
     if channel in ("auto", "whatsapp") and contact.phone and ok["whatsapp"]:
         return "whatsapp"
-    if channel in ("auto", "email") and contact.email and ok["email"]:
+    if channel in ("auto", "email") and contact.email and ok["email"] and not placeholder(contact.email):
         return "email"
     return "console"
+
+
+def placeholder(email: str) -> bool:
+    """Demo and sample addresses (example.com and the other reserved names) are shown in the app, never really mailed."""
+    return email.lower().rsplit("@", 1)[-1] in PLACEHOLDER_DOMAINS or email.lower().endswith((".invalid", ".test", ".example"))
+
+
+PLACEHOLDER_DOMAINS = {"example.com", "example.in", "example.org", "example.net"}
 
 
 def deliver(tenant: Tenant, contact: Contact, text: str, image: str | None = None, channel: str | None = None) -> str:
