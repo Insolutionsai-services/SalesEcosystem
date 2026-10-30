@@ -80,6 +80,10 @@ class UserEdit(BaseModel):
     password: str | None = None        # admin reset
 
 
+class GeminiKey(BaseModel):
+    key: str = Field("", max_length=200)  # blank = remove
+
+
 class WhatsAppSetup(BaseModel):
     phone_id: str = ""
     token: str = ""          # blank = keep the saved token

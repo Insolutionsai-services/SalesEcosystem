@@ -87,7 +87,8 @@ def segment_contacts(s, tenant: Tenant, seg: dict) -> list[Contact]:
 
 def reachable(s, contacts: list[Contact]) -> list[Contact]:
     """Contacts a marketing message may legally go to (recorded consent)."""
-    return [c for c in contacts if compliance.has_consent(s, c)]
+    ok = compliance.consenting_ids(s, contacts[0].tenant_id, [c.id for c in contacts]) if contacts else set()
+    return [c for c in contacts if c.id in ok]
 
 
 def preview(s, tenant: Tenant, seg: dict) -> dict:

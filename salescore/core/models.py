@@ -36,6 +36,8 @@ class Tenant(Base):
     playbook: Mapped[dict] = mapped_column(JSON, default=dict)
     wa_phone_id: Mapped[str | None] = mapped_column(String(64), unique=True)
     wa_token: Mapped[str | None] = mapped_column(Text)  # ponytail: plaintext; encrypt (KMS/pgcrypto) before real clients
+    gemini_key: Mapped[str | None] = mapped_column(Text)  # the company's own LLM key (Settings → AI); never sent to the browser. ponytail: plaintext, as wa_token
+    gemini_model: Mapped[str | None] = mapped_column(String(80))  # the flash-lite model that key was checked against
     plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | unlimited; see services/plan.py
     plan_started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     source: Mapped[str | None] = mapped_column(String(120))  # how a self-created company found us, e.g. "mail city=pune kind=smart"
@@ -59,7 +61,8 @@ class LoginToken(Base):
     __tablename__ = "login_tokens"
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)  # slides forward while the person is active
+    created_at: Mapped[datetime | None] = mapped_column(DateTime)  # signed in at; caps how far expires_at can slide
 
 
 class EmailCode(Base):

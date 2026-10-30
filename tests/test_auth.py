@@ -1,4 +1,6 @@
 """Sign-in: company users, roles, sessions, and that one company never sees another's data."""
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -135,3 +137,47 @@ def test_forgot_password_emails_a_new_one(client, mail, monkeypatch):
     new = sent["boss@acme.in"].split("password is: ")[1].split()[0]
     assert login(client, "boss@acme.in", "owner-pass-1").status_code != 200  # old one no longer works
     assert login(client, "boss@acme.in", new).status_code == 200
+
+
+def test_session_idles_out_and_has_a_hard_limit(client, s, monkeypatch):
+    company(client, "Acme Paints", "boss@acme.in")
+    r = login(client, "boss@acme.in", "owner-pass-1")
+    assert "max-age" not in r.headers["set-cookie"].lower()            # browser drops it on close
+    assert r.headers["cache-control"] == "no-store" and r.headers["x-frame-options"] == "DENY"
+    t0 = users.now()
+    clock = lambda dt: monkeypatch.setattr(users, "now", lambda: t0 + dt)  # noqa: E731
+    for h in range(1, 15):                                               # active every 50 min: stays signed in (to 11h40)...
+        clock(timedelta(minutes=50 * h))
+        assert client.get("/v1/me").status_code == 200, h
+    clock(timedelta(hours=12, minutes=1))                                # ...but never past 12 hours, though last seen 21 min ago
+    assert client.get("/v1/me").status_code == 401
+    login(client, "boss@acme.in", "owner-pass-1")
+    clock(timedelta(hours=12, minutes=1) + users.SESSION_IDLE + timedelta(minutes=1))  # idle over an hour
+    assert client.get("/v1/me").status_code == 401
+
+
+def test_cross_site_writes_are_blocked(client):
+    company(client, "Acme Paints", "boss@acme.in")
+    evil = client.post("/v1/auth/login", json={"email": "boss@acme.in", "password": "owner-pass-1"}, headers={"Origin": "https://evil.example"})
+    assert evil.status_code == 403
+    assert client.post("/v1/auth/login", json={"email": "boss@acme.in", "password": "owner-pass-1"}, headers={"Origin": "http://testserver"}).status_code == 200
+
+
+def test_gemini_key_is_lead_only_checked_and_never_shown(client, monkeypatch):
+    from salescore.ai import llm
+    company(client, "Acme Paints", "boss@acme.in")
+    login(client, "boss@acme.in", "owner-pass-1")
+    def pick(key):
+        if key != "AIza-good-key-1234":
+            raise ValueError("Google didn't accept this key")
+        return "gemini-2.5-flash-lite"
+    monkeypatch.setattr(llm, "pick_gemini_model", pick)
+    assert client.put("/v1/ai/key", json={"key": "nope"}).status_code == 422
+    r = client.put("/v1/ai/key", json={"key": "AIza-good-key-1234"}).json()
+    assert r == {"has_key": True, "hint": "••••1234"}
+    assert "AIza-good" not in client.get("/v1/ai").text                # only the last 4 ever leave the server
+    client.post("/v1/users", json={"name": "Ravi", "email": "ravi@acme.in", "password": "ravi-pass-1"})
+    client.post("/v1/auth/logout")
+    login(client, "ravi@acme.in", "ravi-pass-1")
+    assert client.put("/v1/ai/key", json={"key": ""}).status_code == 403   # sales reps can't change it
+    assert client.get("/v1/ai").json()["has_key"]

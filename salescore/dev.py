@@ -164,17 +164,19 @@ def seed_demo() -> Tenant:
 def run(host: str, port: int, open_browser: bool, reload: bool = False) -> None:
     import uvicorn
 
-    os.environ.setdefault("ADMIN_KEY", "dev-admin")  # also inherited by the reloader's worker process
+    if host in ("127.0.0.1", "localhost"):  # never on a public host (the Docker image runs `dev` on 0.0.0.0): there, admin calls stay off without ADMIN_KEY
+        os.environ.setdefault("ADMIN_KEY", "dev-admin")  # also inherited by the reloader's worker process
     tenant = seed_demo()
     url = f"http://{host}:{port}/"
     cfg = llm.settings()
     ai = f"{cfg.provider} / {cfg.model} (lite: {cfg.model_lite})"
     if cfg.key_env and not cfg.api_key:
         ai += f" - {cfg.key_env} NOT SET in .env; local models still answer routine messages"
+    admin = os.getenv("ADMIN_KEY")
     logins = "\n".join(f"            {email} / {password}  ({role})" for email, _, role, password in DEMO_USERS)
     print(f"\n  GYC running\n  UI        {url}\n  Sign in\n{logins}\n"
           f"  API docs  http://{host}:{port}/docs   (API key {tenant.api_key})\n"
-          f"  Admin key {os.environ['ADMIN_KEY']}\n  AI        {ai}\n", flush=True)
+          f"  Admin key {'dev-admin' if admin == 'dev-admin' else 'from .env' if admin else 'NOT SET (admin calls off)'}\n  AI        {ai}\n", flush=True)  # a real key never goes to the logs
     if open_browser:
         threading.Timer(2.0, webbrowser.open, [url]).start()
     # reload is opt-in: on some Windows shells the reloader cannot stop its worker and keeps serving old code

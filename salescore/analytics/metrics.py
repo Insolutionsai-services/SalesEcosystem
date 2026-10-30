@@ -30,8 +30,9 @@ def load_frames(s, tenant_id: int, contact_id: int | None = None) -> tuple[pd.Da
         q = select(model).where(model.tenant_id == tenant_id)
         return s.scalars(q.where(fk == contact_id) if contact_id is not None else q)
 
+    ok = compliance.consenting_ids(s, tenant_id, None if contact_id is None else [contact_id])
     contacts = _frame([{"id": c.id, "stage": c.stage, "created_at": c.created_at, "opted_out": c.opted_out,
-                        "last_inbound_at": c.last_inbound_at, "consent": compliance.has_consent(s, c)}
+                        "last_inbound_at": c.last_inbound_at, "consent": c.id in ok}
                        for c in scoped(Contact, Contact.id)], CONTACT_COLS, ("created_at", "last_inbound_at"))
     acts = _frame([{"contact_id": a.contact_id, "type": a.type, "at": a.at, "kind": a.data.get("kind")}
                    for a in scoped(Activity, Activity.contact_id)], ACT_COLS, ("at",))

@@ -21,6 +21,11 @@ def is_skip(text: str | None) -> bool:
     return not text or text.strip().upper() == SKIP
 
 
+def own_key(tenant: Tenant) -> tuple[str, str] | None:
+    """The company's own AI key and its checked model, if it saved one (Settings → AI key)."""
+    return (tenant.gemini_key, tenant.gemini_model) if tenant.gemini_key else None  # saved together (routes.set_gemini_key)
+
+
 def record_usage(s, tenant: Tenant, contact: Contact | None, job: str, reply: llm.Reply) -> None:
     log_activity(s, tenant.id, contact.id if contact else None, "llm", job=job, model=reply.model,
                  tokens_in=reply.usage.get("prompt_tokens", 0), tokens_out=reply.usage.get("completion_tokens", 0),
@@ -46,7 +51,7 @@ def run(s, tenant: Tenant, job: str, text: str, contact: Contact | None = None, 
                 {"role": "user", "content": f"CUSTOMER PROFILE:\n{profile}\n\nINPUT:\n{text}"}]
 
     for _ in range(AGENT_MAX_TURNS):
-        reply = chat(messages, tools, lite=job in LITE_JOBS)
+        reply = chat(messages, tools, lite=job in LITE_JOBS, own=own_key(tenant))
         record_usage(s, tenant, contact, job, reply)
         messages.append(reply.message)
         if not reply.tool_calls:

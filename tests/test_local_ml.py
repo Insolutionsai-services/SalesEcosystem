@@ -87,9 +87,15 @@ def test_provider_presets(monkeypatch):
     monkeypatch.setattr(llm.time, "sleep", lambda _: None)
     sent, busy = [], httpx.Response(429, text="temporarily rate-limited upstream")
     ok = httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
-    monkeypatch.setattr(llm.httpx, "post", lambda url, **kw: sent.append(kw["json"]) or (busy if len(sent) <= 2 else ok))
+    monkeypatch.setattr(llm, "_down", {})
+    replies = [busy, busy, ok, ok]
+    monkeypatch.setattr(llm._client, "post", lambda url, **kw: sent.append(kw["json"]) or replies.pop(0))
     assert llm.chat([{"role": "user", "content": "hi"}], lite=True).text == "ok"
-    assert [b["model"] for b in sent] == ["qwen/qwen3.8-27b:free"] * 2 + ["nvidia/nemotron-3-super-120b-a12b:free"]  # fell back
+    lightning, gemma = "nvidia/nemotron-3.5-lightning:free", "google/gemma-4-26b-a4b-it:free"
+    assert [b["model"] for b in sent] == [lightning, gemma, gemma]  # rate-limited: straight to the next model; the last one retries
+    sent.clear()
+    llm.chat([{"role": "user", "content": "hi"}], lite=True)
+    assert [b["model"] for b in sent] == [gemma]  # lightning rests for a minute instead of failing every message
     assert all(b["model"].endswith(":free") for b in sent)
     assert sent[0]["reasoning"] == {"effort": "low", "exclude": True}
     assert sent[0]["provider"] == {"max_price": {"prompt": 0, "completion": 0}}
@@ -113,7 +119,8 @@ def test_chat_retries_and_parses_tool_calls(monkeypatch):
             {"id": "c1", "type": "function", "function": {"name": "search_catalog", "arguments": '{"query": "paint"}'}}]}}],
         "usage": {"prompt_tokens": 10, "completion_tokens": 5}})]
     sent = []
-    monkeypatch.setattr(llm.httpx, "post", lambda url, **kw: sent.append(kw["json"]) or responses.pop(0))
+    monkeypatch.setattr(llm, "_down", {})
+    monkeypatch.setattr(llm._client, "post", lambda url, **kw: sent.append(kw["json"]) or responses.pop(0))
     reply = llm.chat([{"role": "user", "content": "paint?"}], tools=[{"type": "function"}])
     assert len(sent) == 2 and sent[0]["model"] == "qwen3:8b" and sent[0]["tool_choice"] == "auto"
     assert reply.tool_calls[0]["function"]["name"] == "search_catalog" and reply.usage["prompt_tokens"] == 10
@@ -128,3 +135,39 @@ def test_llm_outage_hands_off_instead_of_failing(s, tenant, monkeypatch):
     contact = s.scalars(select(Contact)).one()
     assert via == "fallback" and "team member" in reply and not contact.bot_paused
     assert s.scalars(select(Activity).where(Activity.type == "msg_in")).one()  # the customer's message is kept
+
+
+def test_company_gemini_key_first_then_open_source(monkeypatch):
+    monkeypatch.setattr(config, "LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+    monkeypatch.setattr(llm, "_down", {})
+    monkeypatch.setattr(llm.time, "sleep", lambda _: None)
+    ok = httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
+    sent = []
+    monkeypatch.setattr(llm._client, "post", lambda url, **kw: sent.append((url, kw["json"]["model"], kw["headers"])) or ok)
+    assert llm.chat([{"role": "user", "content": "hi"}], own=("g-company", "gemini-3.5-flash-lite")).model == "gemini-3.5-flash-lite"
+    assert "generativelanguage" in sent[0][0] and sent[0][2]["Authorization"] == "Bearer g-company"
+
+    sent.clear()  # a revoked key: Google says 400, the open-source model answers instead
+    replies = [httpx.Response(400, text="API key not valid"), ok]
+    monkeypatch.setattr(llm._client, "post", lambda url, **kw: sent.append(kw["json"]["model"]) or replies.pop(0))
+    assert llm.chat([{"role": "user", "content": "hi"}], own=("g-revoked", "gemini-3.5-flash-lite")).model == "nvidia/nemotron-3.5-lightning:free"
+    assert sent == ["gemini-3.5-flash-lite", "nvidia/nemotron-3.5-lightning:free"]
+
+
+def test_free_tier_key_gets_the_newest_flash_lite_it_can_use(monkeypatch):
+    monkeypatch.setattr(llm.time, "sleep", lambda _: None)
+    ids = ["models/gemini-3.8-flash", "models/gemini-2.5-flash-lite", "models/gemini-3.5-flash-lite", "models/gemini-3.6-flash-lite-preview",
+           "models/gemini-flash-lite-latest", "models/gemini-2.5-flash-lite-preview-tts", "models/gemini-3.1-flash-lite"]
+    assert llm._lite_first(ids) == ["gemini-3.1-flash-lite", "gemini-2.5-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-lite-latest",
+                                    "gemini-3.6-flash-lite-preview"]
+    monkeypatch.setattr(llm._client, "get", lambda url, **kw: httpx.Response(200, json={"data": [{"id": i} for i in ids]}))
+    tried = []
+    no_quota = httpx.Response(429, text="free tier: limit 0")
+    ok = httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "ok"}}]})
+    monkeypatch.setattr(llm._client, "post", lambda url, **kw: tried.append(kw["json"]["model"]) or (no_quota if kw["json"]["model"] == "gemini-3.1-flash-lite" else ok))
+    assert llm.pick_gemini_model("AIza-free") == "gemini-2.5-flash-lite"  # 3.1 has no free quota on this key: the next preferred
+    assert tried == ["gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
+    monkeypatch.setattr(llm._client, "get", lambda url, **kw: httpx.Response(400, text="API key not valid"))
+    with pytest.raises(ValueError, match="didn't accept"):
+        llm.pick_gemini_model("bad")

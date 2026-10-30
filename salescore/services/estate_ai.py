@@ -160,8 +160,9 @@ def demand(s, tenant: Tenant) -> dict:
 
 def _launch(s, tid: int) -> dict[str, datetime]:
     """When each plot went on sale: the activity written when it was added to the catalog."""
-    rows = s.execute(select(Activity.data["sku"].as_string(), func.min(Activity.at)).where(
-        Activity.tenant_id == tid, Activity.type == "stock", Activity.body.like("Item added%")).group_by(Activity.data["sku"].as_string()))
+    sku = Activity.data["sku"].as_string()  # one expression for SELECT and GROUP BY: Postgres rejects two separately bound copies
+    rows = s.execute(select(sku, func.min(Activity.at)).where(
+        Activity.tenant_id == tid, Activity.type == "stock", Activity.body.like("Item added%")).group_by(sku))
     return dict(rows.all())
 
 

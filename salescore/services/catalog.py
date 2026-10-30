@@ -74,6 +74,10 @@ def search_catalog(s, tenant_id: int, query: str, k: int = 5) -> list[dict]:
     # ponytail: TF-IDF char n-grams are fine to ~50k items; move to pgvector + embeddings beyond that
     hits = catalog_index(s, tenant_id).search(query, k, MIN_MATCH)
     items = get_items(s, tenant_id, [sku for sku, _ in hits])
+    if hits and not items:  # the saved index is from an older catalog: rebuild it once from the live one
+        reindex(s, tenant_id)
+        hits = catalog_index(s, tenant_id).search(query, k, MIN_MATCH)
+        items = get_items(s, tenant_id, [sku for sku, _ in hits])
     return [item_dict(items[sku]) | {"match": round(score, 3)} for sku, score in hits if sku in items]
 
 

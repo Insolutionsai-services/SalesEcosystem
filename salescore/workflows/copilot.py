@@ -142,7 +142,7 @@ def ask(s, tenant: Tenant, message: str, history: list[dict] | None = None) -> d
     messages.append({"role": "user", "content": message})
     actions: list[dict] = []
     for _ in range(AGENT_MAX_TURNS):
-        reply = llm.chat(messages, tools)
+        reply = llm.chat(messages, tools, own=agent.own_key(tenant))
         agent.record_usage(s, tenant, None, "copilot", reply)
         messages.append(reply.message)
         if not reply.tool_calls:

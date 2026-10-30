@@ -1,6 +1,7 @@
 """ASGI entry point: `uvicorn salescore.api.app:app`. Serves the API and the single-page UI at /."""
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
@@ -18,6 +19,32 @@ app = FastAPI(title="GYC", version="0.1")
 app.include_router(routes.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
+
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+       "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; "
+       "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+# ponytail: 'unsafe-inline' because the UI is one inline page; move the script to a file and drop it for a strict CSP
+
+
+@app.middleware("http")
+async def guard(request: Request, call_next):
+    """Blocks cross-site writes, and sets the browser security headers on every response."""
+    origin = request.headers.get("origin")
+    hosts = {request.headers.get("host"), request.headers.get("x-forwarded-host")}  # a browser can't set X-Forwarded-Host cross-site without a preflight we never allow
+    if request.method not in ("GET", "HEAD", "OPTIONS") and origin and urlsplit(origin).netloc not in hosts:
+        return JSONResponse({"detail": "cross-site request blocked"}, status_code=403)  # webhooks and API-key calls send no Origin
+    r = await call_next(request)
+    h = r.headers
+    h["X-Content-Type-Options"] = "nosniff"
+    h["X-Frame-Options"] = "DENY"
+    h["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    h["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(), payment=()"
+    h["Content-Security-Policy"] = CSP
+    if request.url.scheme == "https":
+        h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if request.url.path.startswith("/v1/") or request.url.path == "/":
+        h["Cache-Control"] = "no-store"  # customer data never sits in the browser cache (the back button after sign-out shows nothing)
+    return r
 
 
 @app.get("/", include_in_schema=False)
