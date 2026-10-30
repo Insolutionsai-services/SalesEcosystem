@@ -17,9 +17,10 @@ PRESETS = {
     # Free tier (Sept 2026 picks): 50 requests/day, 1,000/day after buying $10 credits; free providers may train on
     # prompts, so use it for pilots, not real customer data. Fallbacks kick in on rate limits and downtime.
     "openrouter": {"base_url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY",
-                   "model": "qwen/qwen3.8-27b:free", "model_lite": "qwen/qwen3.8-27b:free",
-                   # free pools are often congested; this order was checked live on 30 Sep 2026
-                   "fallbacks": ["qwen/qwen3.8-27b:free", "nvidia/nemotron-3-super-120b-a12b:free", "nvidia/nemotron-3-ultra-550b-a55b:free"],
+                   "model": "nvidia/nemotron-3.5-lightning:free", "model_lite": "nvidia/nemotron-3.5-lightning:free",
+                   # checked live 30 Oct 2026: lightning 1.5 s with a correct tool call; gemma is the fallback
+                   # (qwen3.8-27b and nemotron-3-super stopped being free: 404; nemotron-3-ultra works but takes 5-34 s)
+                   "fallbacks": ["nvidia/nemotron-3.5-lightning:free", "google/gemma-4-26b-a4b-it:free"],
                    "free_only": True,  # refuse any non-':free' model id; OPENROUTER_ALLOW_PAID=1 lifts it
                    "extra_body": {"reasoning": {"effort": "low", "exclude": True},  # Qwen3.8 defaults to xhigh reasoning
                                   "provider": {"max_price": {"prompt": 0, "completion": 0}}}},  # never route to a paid endpoint
@@ -29,6 +30,9 @@ RETRY_STATUS = {429, 500, 502, 503, 504}   # worth retrying the same model
 NEXT_MODEL_STATUS = RETRY_STATUS | {403, 404}  # try the next model (403: model restricted, 404: no provider)
 THINK_BLOCK = re.compile(r"<think>.*?</think>\s*", re.S)  # reasoning models may inline their thinking
 ATTEMPTS = 2  # per model; then the next fallback model is tried
+RESTING = 60  # seconds a rate-limited model is skipped
+_down: dict[str, float] = {}  # model -> skip until (monotonic); gone models (403/404) for the life of the process
+_client = httpx.Client()  # one connection pool: no new TLS handshake per call
 
 
 class LLMUnavailable(RuntimeError):
@@ -94,35 +98,86 @@ def _headers(cfg: Settings) -> dict:
     return {"Authorization": f"Bearer {cfg.api_key or 'none'}"}
 
 
-def _post(cfg: Settings, body: dict) -> dict:
+def _post(cfg: Settings, body: dict, more: bool = False) -> dict:  # more: another model can be tried
     for attempt in range(ATTEMPTS):
         last = attempt == ATTEMPTS - 1
         try:
-            r = httpx.post(f"{cfg.base_url}/chat/completions", headers=_headers(cfg), json=body, timeout=config.LLM_TIMEOUT)
+            r = _client.post(f"{cfg.base_url}/chat/completions", headers=_headers(cfg), json=body, timeout=config.LLM_TIMEOUT)
         except httpx.TransportError as e:
             if last:
                 raise ModelUnavailable(f"cannot reach {cfg.base_url}: {e}") from e
         else:
             if r.status_code < 400:
                 return r.json()
-            if last or r.status_code not in RETRY_STATUS:
+            if r.status_code in (403, 404):
+                _down[body["model"]] = float("inf")
+            elif r.status_code == 429:
+                _down[body["model"]] = time.monotonic() + RESTING
+            if last or r.status_code not in RETRY_STATUS or (r.status_code == 429 and more):  # rate-limited: the next model, not a wait
                 error = ModelUnavailable if r.status_code in NEXT_MODEL_STATUS else LLMUnavailable
                 raise error(f"{cfg.provider} {body['model']} returned {r.status_code}: {r.text[:300]}")
         time.sleep(2 ** attempt)
     raise AssertionError("unreachable")
 
 
-def chat(messages: list[dict], tools: list[dict] | None = None, lite: bool = False) -> Reply:
-    cfg = _checked()
+def _gemini(key: str, model: str) -> Settings:
+    return Settings(provider="gemini", base_url=PRESETS["gemini"]["base_url"], api_key=key, key_env=None, model=model, model_lite=model)
+
+
+GEMINI_PREFERRED = ("gemini-3.1-flash-lite", "gemini-2.5-flash-lite")  # enough for sales replies, fewest tokens; tried first, in this order
+
+
+def _lite_first(ids: list[str]) -> list[str]:
+    """Flash-lite models: GEMINI_PREFERRED first, then stable before preview/experimental, newest version first."""
+    def version(m: str) -> float:
+        v = re.search(r"gemini-(\d+(?:\.\d+)?)", m)
+        return float(v.group(1)) if v else 0.0  # "gemini-flash-lite-latest": after the numbered ones
+    lite = [m.removeprefix("models/") for m in ids if "flash-lite" in m and not re.search(r"tts|audio|image|live", m)]
+    rank = lambda m: GEMINI_PREFERRED.index(m) if m in GEMINI_PREFERRED else len(GEMINI_PREFERRED)  # noqa: E731
+    return sorted(set(lite), key=lambda m: (rank(m), bool(re.search(r"preview|exp", m)), -version(m)))
+
+
+def pick_gemini_model(key: str) -> str:
+    """The flash-lite model this key can really use (free-tier keys have no quota on some): checked with a one-word call each,
+    at most 4. Raises ValueError with a plain reason."""
+    try:
+        r = _client.get(f"{PRESETS['gemini']['base_url']}/models", headers={"Authorization": f"Bearer {key}"}, timeout=15)
+    except httpx.TransportError as e:
+        raise ValueError(f"couldn't reach Google to check the key: {e}") from e
+    if r.status_code >= 400:
+        raise ValueError("Google didn't accept this key; copy it again from aistudio.google.com/apikey")
+    for model in _lite_first([m.get("id", "") for m in r.json().get("data", [])])[:4]:
+        try:
+            _post(_gemini(key, model), {"model": model, "messages": [{"role": "user", "content": "Reply with: ok"}], "max_tokens": 5}, more=True)  # 429: next model, no wait
+            return model
+        except LLMUnavailable:  # no free quota on this one, or not served: the next
+            continue
+    raise ValueError("this key works, but none of its fast (flash-lite) models answered; check the key's quota in Google AI Studio")
+
+
+def chat(messages: list[dict], tools: list[dict] | None = None, lite: bool = False, own: tuple[str, str] | None = None) -> Reply:
+    """own: the company's own (key, model). Without it, or if it fails, the configured (open-source) models answer."""
+    if own and _down.get(own[0], 0) <= time.monotonic():
+        try:
+            return _chat(_gemini(*own), messages, tools, lite)
+        except LLMUnavailable:  # revoked key, quota used up, outage: the customer still gets an answer,
+            _down[own[0]] = time.monotonic() + RESTING  # and the next minute's messages skip the key instead of waiting on it
+    return _chat(_checked(), messages, tools, lite)
+
+
+def _chat(cfg: Settings, messages: list[dict], tools: list[dict] | None, lite: bool) -> Reply:
     first = cfg.model_lite if lite else cfg.model
     candidates = [first, *(m for m in cfg.fallbacks if m != first)]
+    up = [m for m in candidates if _down.get(m, 0) <= time.monotonic()]
+    candidates = up or candidates[-1:]  # all resting: still try the last one rather than fail outright
     started = time.perf_counter()
     for i, model in enumerate(candidates):  # client-side fallback: works for every provider
         body = {"model": model, "messages": messages, **cfg.extra_body}
         if tools:
             body |= {"tools": tools, "tool_choice": "auto"}
         try:
-            data = _post(cfg, body)
+            data = _post(cfg, body, more=i < len(candidates) - 1)
+            _down.pop(model, None)  # answered: no longer resting
             break
         except ModelUnavailable:
             if i == len(candidates) - 1:
@@ -135,6 +190,6 @@ def chat(messages: list[dict], tools: list[dict] | None = None, lite: bool = Fal
 
 def list_models() -> list[str]:
     cfg = _checked()
-    r = httpx.get(f"{cfg.base_url}/models", headers=_headers(cfg), timeout=config.LLM_TIMEOUT)
+    r = _client.get(f"{cfg.base_url}/models", headers=_headers(cfg), timeout=config.LLM_TIMEOUT)
     r.raise_for_status()
     return sorted(m["id"] for m in r.json().get("data", []))

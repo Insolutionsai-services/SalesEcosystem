@@ -61,7 +61,7 @@ def test_nothing_a_company_sees_names_the_models(client):
         assert not leak.search((root / f).read_text(encoding="utf-8")), f
     client.post("/v1/tenants", headers={"X-Admin-Key": "adm"}, json={"name": "Acme", "owner_email": "a@acme.in", "owner_name": "A", "owner_password": "owner-pass-1"})
     client.post("/v1/auth/login", json={"email": "a@acme.in", "password": "owner-pass-1"})
-    for path in ("/v1/me", "/v1/agents"):
+    for path in ("/v1/me", "/v1/agents", "/v1/ai"):
         assert not leak.search(client.get(path).text), path
 
 

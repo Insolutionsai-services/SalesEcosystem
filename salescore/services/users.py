@@ -4,7 +4,7 @@ import hmac
 import secrets
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 
 from ..core.models import LoginToken, Tenant, User
 from ..core.utils import norm_email, now
@@ -12,7 +12,8 @@ from . import plan
 
 ROLES = ("admin", "member")
 MIN_PASSWORD = 8
-SESSION_DAYS = 14
+SESSION_IDLE = timedelta(hours=1)    # signed out after this long with no request (a visible tab polls and stays signed in; a hidden one doesn't)
+SESSION_MAX = timedelta(hours=12)    # and always after this long, active or not: a fresh sign-in every working day
 MAX_FAILS, LOCKOUT = 5, timedelta(minutes=10)
 _fails: dict[str, tuple[int, datetime]] = {}  # ponytail: per-process throttle; move to the DB/Redis with several workers
 
@@ -88,15 +89,10 @@ def check_login(s, email: str, password: str) -> User:
 def open_session(s, user: User) -> str:
     """Signs the user in on this browser; returns the cookie value."""
     at, token = now(), secrets.token_urlsafe(32)
-    s.execute(delete(LoginToken).where(LoginToken.expires_at < at))
-    s.add(LoginToken(token_hash=_token_hash(token), user_id=user.id, expires_at=at + timedelta(days=SESSION_DAYS)))
+    s.execute(delete(LoginToken).where(or_(LoginToken.expires_at < at, LoginToken.created_at.is_(None))))  # expired, and pre-idle-timeout tokens
+    s.add(LoginToken(token_hash=_token_hash(token), user_id=user.id, expires_at=at + SESSION_IDLE, created_at=at))
     user.last_login_at = at
     return token
-
-
-def sign_in(s, email: str, password: str) -> tuple[User, str]:
-    user = check_login(s, email, password)
-    return user, open_session(s, user)
 
 
 def create_workspace(s, company: str, email: str, name: str, password_hash: str, source: str = "") -> User:
@@ -131,11 +127,15 @@ def find(s, email: str) -> User | None:
 
 
 def user_for_token(s, token: str | None) -> User | None:
+    """The signed-in user, sliding the idle timeout forward (the caller commits). Tokens from before created_at existed are refused."""
     if not token:
         return None
-    row = s.get(LoginToken, _token_hash(token))
-    if row is None or row.expires_at < now():
+    row, at = s.get(LoginToken, _token_hash(token)), now()
+    if row is None or row.created_at is None or row.expires_at < at:
         return None
+    slid = min(at + SESSION_IDLE, row.created_at + SESSION_MAX)
+    if slid - row.expires_at > timedelta(minutes=1):  # at most one write a minute per browser
+        row.expires_at = slid
     return s.get(User, row.user_id)
 
 

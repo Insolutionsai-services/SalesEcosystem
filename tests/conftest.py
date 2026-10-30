@@ -52,7 +52,7 @@ class FakeLLM:
     def __init__(self, *turns):
         self.turns, self.calls = list(turns), []
 
-    def __call__(self, messages, tools=None, lite=False):
+    def __call__(self, messages, tools=None, lite=False, own=None):
         self.calls.append({"messages": list(messages), "tools": tools, "lite": lite})
         if not self.turns:
             raise AssertionError("LLM called but no scripted turn left (expected a local answer?)")

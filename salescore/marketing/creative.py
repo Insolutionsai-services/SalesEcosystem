@@ -84,7 +84,7 @@ def write(s, tenant: Tenant, goal: str, offer: str, audience_note: str, skus: li
     brief = to_json({"goal": goal, "offer": offer, "audience": audience_note,
                      "products": product_facts(s, tenant, skus), "tax_pct": setting(tenant, "pricing.tax_pct")})
     reply = llm.chat([{"role": "system", "content": f"{SYSTEM}\n\nPLAYBOOK:\n{to_json(tenant.playbook)}"},
-                      {"role": "user", "content": f"CAMPAIGN BRIEF:\n{brief}"}])
+                      {"role": "user", "content": f"CAMPAIGN BRIEF:\n{brief}"}], own=agent.own_key(tenant))
     agent.record_usage(s, tenant, None, "creative", reply)
     draft = parse(reply.text)
     draft.variants = draft.variants[: int(setting(tenant, "creative.variants"))]

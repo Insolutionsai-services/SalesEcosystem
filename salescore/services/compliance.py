@@ -36,6 +36,13 @@ def has_consent(s, contact: Contact) -> bool:
     return bool(latest and latest.granted)
 
 
+def consenting_ids(s, tenant_id: int, contact_ids: list[int] | None = None) -> set[int]:
+    """has_consent for many contacts in one query (all of the company's when contact_ids is None): the latest row wins."""
+    q = select(Consent.contact_id, Consent.granted).where(Consent.tenant_id == tenant_id).order_by(Consent.at, Consent.id)
+    latest = dict(s.execute(q if contact_ids is None else q.where(Consent.contact_id.in_(contact_ids))).all())
+    return {cid for cid, granted in latest.items() if granted}
+
+
 def in_service_window(contact: Contact, at: datetime) -> bool:
     return bool(contact.last_inbound_at and at - contact.last_inbound_at <= SERVICE_WINDOW)
 

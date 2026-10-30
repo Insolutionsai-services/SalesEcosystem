@@ -75,7 +75,7 @@
 
   /* ---------- shell ---------- */
   .shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr) auto; height: 100%; }
-  .rail { background: var(--rail); color: var(--rail-ink); display: flex; flex-direction: column; min-height: 0; }
+  .rail { background: var(--rail); color: var(--rail-ink); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
   .brand { display: flex; align-items: center; gap: 11px; padding: 20px 18px 16px; }
   .brand-mark { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--human); color: var(--on-human);
     font-family: var(--font-display); font-weight: 700; font-size: .95rem; flex: none; }
@@ -94,8 +94,6 @@
   .count { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--human); color: var(--on-human);
     font-size: .72rem; font-weight: 700; display: inline-grid; place-items: center; animation: pop .35s var(--ease); }
   @keyframes pop { from { transform: scale(.4); opacity: 0; } }
-  .rail-foot { margin-top: auto; padding: 16px 18px 20px; font-size: .75rem; color: var(--rail-muted); display: flex; align-items: center; gap: 8px; }
-  .rail-foot kbd { font-family: var(--font-mono); border: 1px solid var(--rail-3); border-radius: 5px; padding: 0 6px; color: var(--rail-ink); }
 
   .main { min-width: 0; display: flex; flex-direction: column; min-height: 0; }
   .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
@@ -640,7 +638,7 @@
     .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
     .brand { padding: 12px 16px 6px; }
     .nav { flex-direction: row; overflow-x: auto; padding: 4px 12px 10px; }
-    .nav-label, .rail-foot { display: none; }
+    .nav-label { display: none; }
     .nav button { white-space: nowrap; flex: none; }
     .topbar { padding: 10px 16px; } .team-pill { display: none; }
     .content { padding: 18px 16px; }
@@ -681,7 +679,6 @@
       <button data-page="catalog"><svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Catalog</span></button>
       <button data-page="settings"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="15" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>Settings</span></button>
     </nav>
-    <div class="rail-foot">Press <kbd>/</kbd> to ask your team</div>
   </aside>
 
   <div class="main">
@@ -968,6 +965,13 @@
           </div>
         </div>
         <div class="panel stack" style="margin-top:22px">
+          <div class="row" style="justify-content:space-between"><h3>AI key</h3><span id="aiState"></span></div>
+          <p class="small muted" style="margin:0" id="aiHelp"></p>
+          <div data-admin><label for="aiKey">Your AI key</label><input id="aiKey" type="password" placeholder="Paste a key from aistudio.google.com/apikey" autocomplete="off"></div>
+          <div class="row" data-admin><button class="btn human" id="aiSave">Save key</button><button class="btn ghost" id="aiRemove" hidden>Remove key</button></div>
+          <p class="tiny muted" style="margin:0" data-member-note>Only the sales lead can change the AI key.</p>
+        </div>
+        <div class="panel stack" style="margin-top:22px">
           <div class="panel-head"><h2>Team</h2><span class="small muted">People who can sign in. The sales lead runs everything; sales reps do the daily work.</span></div>
           <div id="teamList"><div class="skeleton" style="height:60px"></div></div>
           <form class="add-person" id="addPerson" data-admin>
@@ -1096,10 +1100,13 @@ const fmt = (t) => esc(t)
   .replace(/(^|[\s(])~(\S(?:[^~\n]*?\S)?)~(?=$|[\s.,!?;:)])/gm, "$1<s>$2</s>")
   .replace(/^#{1,6}\s*(.+)$/gm, "<strong>$1</strong>")
   .replace(/^[-•]\s+/gm, "• ");
-const store = {
-  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
-};
+const storage = (name) => ({  // storage can be blocked (private mode, sandboxing): never let it throw
+  get: (k) => { try { return window[name].getItem(k); } catch { return null; } },
+  set: (k, v) => { try { window[name].setItem(k, v); } catch { /* blocked */ } },
+  clear: () => { try { window[name].clear(); } catch { /* blocked */ } },
+});
+const store = storage("localStorage");  // per browser: theme, sign-up source
+const tab = storage("sessionStorage");  // per tab and per sign-in: open page, agent, side panel. Gone when the tab closes; wiped on sign-out
 const state = { user: null, currency: "INR", contacts: [], selected: null, page: "home", chat: [], playbook: null };
 
 async function api(path, { method = "GET", body, csv, file } = {}) {
@@ -1110,7 +1117,7 @@ async function api(path, { method = "GET", body, csv, file } = {}) {
   else if (body !== undefined) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   const res = await fetch(path, { method, headers, body: payload });
   const data = await res.json().catch(() => null);
-  if (res.status === 401) { showLogin(); throw new Error("Please sign in."); }
+  if (res.status === 401) { tab.clear(); showLogin(); throw new Error("Please sign in."); }
   if (res.status === 402) { showGate(data.detail); throw new Error(data.detail.message.replace(/^./, (c) => c.toUpperCase())); }
   if (res.status === 404 && data?.detail === "Not Found") {  // route missing: the server is older than this page
     $("#staleBanner").hidden = false;
@@ -1140,6 +1147,7 @@ function countUp(el, to, fmt) {  // numbers glide to their value instead of jump
 }
 const skeletons = (n, h = 54) => Array.from({ length: n }, () => `<div class="skeleton" style="height:${h}px;margin:6px 0"></div>`).join("");
 const money = (n, opts = {}) => new Intl.NumberFormat("en-IN", { style: "currency", currency: state.currency, maximumFractionDigits: 0, ...opts }).format(n || 0);
+const moneyShort = (n) => money(n, { notation: "compact", maximumFractionDigits: 1 });
 const parseTime = (iso) => new Date(iso.endsWith("Z") ? iso : iso + "Z");
 const when = (iso) => (iso ? parseTime(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "");
 function ago(iso) {
@@ -1160,11 +1168,11 @@ async function loadContacts() { state.contacts = await api("/v1/contacts"); retu
 // ---------- navigation ----------
 const loaders = {};
 function openPage(name) {
-  if (!$(`#page-${name}`)) name = "home";
+  if (!$(`#page-${name}`) || $(`#nav [data-page=${name}]`)?.hidden) name = "home";  // a page this company doesn't have
   state.page = name;
   $$("#nav button").forEach((b) => (b.dataset.page === name ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current")));
   $$(".page").forEach((p) => (p.hidden = p.id !== `page-${name}`));
-  store.set("sc_page", name);
+  tab.set("sc_page", name);
   $("#content").scrollTop = 0;
   $(`#page-${name} .page-error`)?.remove();
   loaders[name]?.().catch((e) => {
@@ -1268,13 +1276,13 @@ loaders.home = async () => {
   if (!$("#kpis").children.length) { $("#kpis").innerHTML = skeletons(5, 86).replaceAll('style="height:86px;margin:6px 0"', 'style="height:86px"'); $("#feed").innerHTML = skeletons(5, 34); }
   const [m, team, feed, needs, plays] = await Promise.all([api("/v1/insights"), api("/v1/team"), api("/v1/feed?limit=30"),
     refreshNeeds(), api("/v1/marketing/recommendations"), loadContacts()]);
-  const live = liveAgents(feed);
+  const live = liveAgents(feed); state.team = team;
   renderChain(team, live); renderFeed(feed);
   const ai = m.ai_30d;
   renderTeamPill(team);
   const localRate = ai.local_answer_rate ?? 0;
   const kpis = [  // [label, number, formatter, sub-line]
-    ["Open pipeline", m.open_pipeline, money, esc(`forecast ${money(m.forecast_weighted_pipeline)}`)],
+    ["Open pipeline", m.open_pipeline, moneyShort, esc(`forecast ${money(m.forecast_weighted_pipeline)}`)],
     ["First reply", m.median_first_response_min, (x) => (m.median_first_response_min == null ? "–" : `${Math.round(x * 10) / 10} min`), "median, customer to agent"],
     ["Answered instantly", ai.local_answer_rate ?? 0, (x) => (ai.local_answer_rate == null ? "–" : pct(x)), `<div class="meter"><span style="width:${Math.round(localRate * 100)}%"></span></div>`],
     ["AI cost, 30 days", ai.llm_cost_usd || 0, (x) => `$${x.toFixed(4)}`, esc(`${ai.llm_calls} AI messages`)],
@@ -1758,7 +1766,6 @@ $("#quoteRows").addEventListener("click", (e) => {
 
 // ---------- analytics ----------
 const SERIES = [["enquiries", "Enquiries", "--series-1"], ["quotes", "Quotes", "--series-2"], ["orders", "Orders", "--series-3"]];
-const moneyShort = (n) => money(n, { notation: "compact", maximumFractionDigits: 1 });
 const shortDate = (iso) => new Date(iso + "T00:00").toLocaleDateString([], { day: "numeric", month: "short" });
 state.anDays = 30;
 
@@ -2111,13 +2118,13 @@ loaders.agents = async () => {
   if (!state.agents) $("#agentList").innerHTML = skeletons(8, 40);
   const data = await api("/v1/agents");
   state.agents = data.agents; state.presets = data.presets;
-  if (!state.agents.some((a) => a.key === state.agentSel)) state.agentSel = store.get("sc_agent") || "response";
+  if (!state.agents.some((a) => a.key === state.agentSel)) state.agentSel = tab.get("sc_agent") || "response";
   renderPresets(); renderAgentList(); renderAgentDetail();
 };
 $("#agentList").addEventListener("click", (e) => {
   const row = e.target.closest("[data-agent]");
   if (!row || row.dataset.agent === state.agentSel) return;
-  state.agentSel = row.dataset.agent; store.set("sc_agent", state.agentSel);
+  state.agentSel = row.dataset.agent; tab.set("sc_agent", state.agentSel);
   renderAgentList(); renderAgentDetail();
 });
 $("#presets").addEventListener("click", (e) => {
@@ -2257,9 +2264,16 @@ function renderChannels(c) {
   $("#mailHelp").innerHTML = mail.ready ? `Sending from <span class="mono">${esc(mail.from)}</span>.`
     : `Missing: ${mail.missing_env.map((k) => `<span class="mono">${k}</span>`).join(", ")}.`;
 }
+function renderAi(a) {
+  $("#aiState").innerHTML = a.has_key ? pill(`Your key ${a.hint}`, "good") : pill("Free AI", "agent");
+  $("#aiHelp").textContent = a.has_key
+    ? "Replies use your own key: faster and steadier. If it ever stops working, the free AI answers instead, so customers always get a reply."
+    : "Replies use the free AI. Add your own key from Google AI Studio for faster, steadier replies; remove it any time to go back.";
+  $("#aiKey").value = ""; $("#aiRemove").hidden = !a.has_key;  // the saved key is never shown, only its last 4 characters
+}
 loaders.settings = async () => {
-  const [c, pb] = await Promise.all([api("/v1/channels"), api("/v1/playbook"), loadTeam()]);
-  renderChannels(c);
+  const [c, pb, ai] = await Promise.all([api("/v1/channels"), api("/v1/playbook"), api("/v1/ai"), loadTeam()]);
+  renderChannels(c); renderAi(ai);
   $("#pbText").value = JSON.stringify(pb, null, 2);
 };
 $("#waSave").onclick = (e) => busy(e.target, async () => {
@@ -2270,6 +2284,16 @@ $("#waSave").onclick = (e) => busy(e.target, async () => {
 $("#waRemove").onclick = (e) => busy(e.target, async () => {
   renderChannels(await api("/v1/channels/whatsapp", { method: "PUT", body: { phone_id: "", token: "" } }));
   toast("WhatsApp disconnected.");
+});
+$("#aiSave").onclick = (e) => busy(e.target, async () => {
+  const key = $("#aiKey").value.trim();
+  if (!key) return toast("Paste the key first", true);
+  renderAi(await api("/v1/ai/key", { method: "PUT", body: { key } }));  // Google checks it before it's saved
+  toast("Key checked and saved. Replies use it from the next message.");
+});
+$("#aiRemove").onclick = (e) => busy(e.target, async () => {
+  renderAi(await api("/v1/ai/key", { method: "PUT", body: { key: "" } }));
+  toast("Key removed. Replies are back on the free AI.");
 });
 $("#testSend").onclick = (e) => busy(e.target, async () => {
   const to = $("#testTo").value.trim();
@@ -2297,8 +2321,8 @@ function renderChat(thinking = false) {
   $("#chat").innerHTML = intro + msgs + (thinking ? `<div class="thinking"><i></i><i></i><i></i> Working with the agents…</div>` : "");
   $("#chat").scrollTop = $("#chat").scrollHeight;
 }
-function openCopilot() { $("#copilot").hidden = false; store.set("sc_copilot", "1"); renderChat(); $("#ask").focus(); }
-function closeCopilot() { $("#copilot").hidden = true; store.set("sc_copilot", "0"); }
+function openCopilot() { $("#copilot").hidden = false; tab.set("sc_copilot", "1"); renderChat(); $("#ask").focus(); }
+function closeCopilot() { $("#copilot").hidden = true; tab.set("sc_copilot", "0"); }
 async function sendToCopilot(text) {
   if (!text.trim() || $("#askSend").disabled) return;
   const history = state.chat.map(({ role, content }) => ({ role, content }));
@@ -2366,7 +2390,7 @@ function setMode(mode) {
   $("#loginError").hidden = true;
 }
 $$(".auth-tabs button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
-const finishLogin = () => { gateShown.clear(); $("#loginPass").value = ""; $("#login").hidden = true; document.title = "GYC"; boot(); };
+const finishLogin = () => location.reload();  // a fresh page: nothing from an earlier session stays in memory or on screen
 function askCode(email) {
   $("#loginForm").hidden = true; $(".auth-tabs").hidden = true; $("#googleBtn").hidden = true; $("#authOr").hidden = true;
   $("#otpForm").hidden = false; $("#otpError").hidden = true; $("#otpCode").value = "";
@@ -2407,7 +2431,7 @@ $("#otpForm").addEventListener("submit", (e) => {
   if (!/^\d{6}$/.test(code)) { showErr("#otpError", "Enter the 6-digit code."); return; }
   busy($("#otpBtn"), async () => {
     try { await api("/v1/auth/verify", { method: "POST", body: { email, code } }); } catch (err) { showErr("#otpError", err.message); return; }
-    finishLogin(); backToForm();
+    finishLogin();
   });
 });
 $("#otpResend").onclick = () => busy($("#otpResend"), async () => {
@@ -2464,6 +2488,7 @@ $("#userMenu").addEventListener("click", (e) => { if (e.target.closest("[data-go
 $("#logoutBtn").onclick = async () => {
   closeMenu();
   await fetch("/v1/auth/logout", { method: "POST" }).catch(() => {});
+  tab.clear();
   location.reload();  // a clean page: nothing from this person's session stays on screen
 };
 $("#pwOpen").onclick = () => { closeMenu(); $("#pwCurrent").value = $("#pwNew").value = ""; $("#pwOverlay").hidden = false; $("#pwCurrent").focus(); };
@@ -2538,14 +2563,14 @@ $("#themeBtn").onclick = () => {
   const next = dark ? "light" : "dark"; applyTheme(next); store.set("sc_theme", next);
 };
 
-let poller;
+let poller, ticks = 0;
 async function boot() {
   const url = new URL(location.href);
   if (url.searchParams.has("key")) { url.searchParams.delete("key"); history.replaceState(null, "", url); }  // old links
   if (url.searchParams.has("from")) {  // a link from an outreach mail: remember its tags until the person creates the account
     store.set("sc_src", [...url.searchParams].map(([k, v]) => k === "from" ? v : `${k}=${v}`).join(" ").slice(0, 120));
   }
-  try { localStorage.removeItem("sc_key"); } catch { /* private mode */ }  // keys no longer live in the browser
+  try { ["sc_key", "sc_page", "sc_agent", "sc_copilot"].forEach((k) => localStorage.removeItem(k)); } catch { /* private mode */ }  // where older versions kept keys and pages
   try {
     const me = await api("/v1/me");
     document.body.classList.add("ready");
@@ -2564,16 +2589,17 @@ async function boot() {
     $("#staleBanner").hidden = !me.stale;
     $("#homeTitle").textContent = me.name;
   } catch (e) { return $("#login").hidden ? toast(e.message, true) : undefined; }
-  openPage(store.get("sc_page") || "home");
+  openPage(tab.get("sc_page") || "home");
   refreshPlan();
   api("/v1/team").then(renderTeamPill).catch(() => {});
-  if (store.get("sc_copilot") === "1" && innerWidth > 1180) openCopilot();
+  if (tab.get("sc_copilot") === "1" && innerWidth > 1180) openCopilot();
   clearInterval(poller);
   poller = setInterval(async () => {  // the team keeps working while you watch
     if (document.hidden) return;
     try {
-      if (state.page === "home") {
-        const [team, feed] = await Promise.all([api("/v1/team"), api("/v1/feed?limit=30")]);
+      if (state.page === "home") {  // the feed every 15s; the agent roster (heavier) every 60s
+        const [team, feed] = await Promise.all([++ticks % 4 && state.team ? state.team : api("/v1/team"), api("/v1/feed?limit=30")]);
+        state.team = team;
         const live = liveAgents(feed); renderChain(team, live); renderFeed(feed); renderTeamPill(team);
       }
       await refreshNeeds();

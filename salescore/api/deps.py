@@ -19,7 +19,10 @@ def db():
 
 
 def signed_in(request: Request, s=Depends(db)) -> User | None:
-    return users.user_for_token(s, request.cookies.get(SESSION_COOKIE))
+    user = users.user_for_token(s, request.cookies.get(SESSION_COOKIE))
+    if s.dirty:
+        s.commit()  # keeps the slid idle timeout even on read-only requests; at most one write a minute
+    return user
 
 
 def current_user(user: User | None = Depends(signed_in)) -> User:

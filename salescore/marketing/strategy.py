@@ -115,6 +115,8 @@ def _candidate_plays(s, tenant: Tenant) -> list[Play]:
 
 def recommend(s, tenant: Tenant, limit: int = 5) -> list[Play]:
     """Ranked plays for this company right now (expected revenue first)."""
+    if not agents.enabled(tenant, "strategy"):  # before any query
+        return []
     at = now()
     cooldown = at - timedelta(days=setting(tenant, "marketing.cooldown_days"))
     busy = {c.play for c in s.scalars(select(Campaign).where(Campaign.tenant_id == tenant.id)) if c.play and (
@@ -122,9 +124,6 @@ def recommend(s, tenant: Tenant, limit: int = 5) -> list[Play]:
     won = _won_quotes(s, tenant.id)
     avg_order = sum(q.total for q in won) / len(won) if won else 0.0
     send_at = best_send_time(s, tenant, at)
-
-    if not agents.enabled(tenant, "strategy"):
-        return []
     allowed = set(setting(tenant, "marketing.plays"))
     ranked = []
     for play in _candidate_plays(s, tenant):

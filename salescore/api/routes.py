@@ -3,8 +3,9 @@ import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from ..ai import llm
 from ..analytics import report
 from ..analytics.metrics import analyse
 from ..analytics.team import feed, roster
@@ -89,6 +90,28 @@ def set_whatsapp(body: schemas.WhatsAppSetup, t: Tenant = Depends(tenant_of), s=
         if not t.wa_phone_id:
             t.wa_token = None  # disconnect
     return channel_status(t)
+
+
+def _ai_status(t: Tenant) -> dict:
+    """Whether the company uses its own AI key. The key never leaves the server (only its last 4 characters), and no model names do."""
+    return {"has_key": bool(t.gemini_key), "hint": f"••••{t.gemini_key[-4:]}" if t.gemini_key else ""}
+
+
+@router.get("/ai")
+def ai_status(t: Tenant = Depends(tenant_of)):
+    return _ai_status(t)
+
+
+@router.put("/ai/key", dependencies=[Depends(manager)])
+def set_gemini_key(body: schemas.GeminiKey, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Saves the company's Gemini key after Google accepts it; a blank key removes it (back to open-source models)."""
+    key = body.key.strip()
+    s.commit()  # hand the DB connection back while Google is called (up to a few seconds)
+    with transaction(s):  # maps a rejected key to a 422
+        model = llm.pick_gemini_model(key) if key else None  # also proves Google accepts the key
+    with transaction(s):
+        t.gemini_key, t.gemini_model = key or None, model
+    return _ai_status(t)
 
 
 @router.post("/channels/test")
@@ -248,13 +271,15 @@ def log_outreach(body: schemas.OutreachMail, t: Tenant = Depends(tenant_of), s=D
 def outreach_summary(t: Tenant = Depends(tenant_of), s=Depends(db)):
     """How the cold outreach is going: every company mailed, how many mails it got, whether it replied or asked to stop."""
     leads = s.scalars(select(Contact).where(Contact.tenant_id == t.id, Contact.source == "outreach").order_by(Contact.id)).all()
-    acts = s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.channel == "email", Activity.contact_id.in_([c.id for c in leads]))).all() if leads else []
-    out = {c.id: sum(1 for a in acts if a.contact_id == c.id and a.type == "msg_out") for c in leads}
+    sent = {cid: (n, at) for cid, n, at in s.execute(select(Activity.contact_id, func.count(), func.max(Activity.at)).where(  # mail bodies stay in the DB
+        Activity.tenant_id == t.id, Activity.channel == "email", Activity.type == "msg_out", Activity.contact_id.in_([c.id for c in leads]))
+        .group_by(Activity.contact_id))} if leads else {}
+    out = {c.id: sent.get(c.id, (0,))[0] for c in leads}
     companies = [{"id": c.id, "name": c.name, "email": c.email, "kind": c.attrs.get("kind") or "general", "city": c.attrs.get("city") or "",
                   "mails": out[c.id], "replied": bool(c.last_inbound_at) and not c.opted_out, "stopped": c.opted_out} for c in leads]
     return {"companies_mailed": len(leads), "mails_sent": sum(out.values()),
             "replied": [x["name"] for x in companies if x["replied"]], "stopped": [x["name"] for x in companies if x["stopped"]],
-            "last_sent_at": max((a.at for a in acts if a.type == "msg_out"), default=None), "companies": companies}
+            "last_sent_at": max((at for _, at in sent.values()), default=None), "companies": companies}
 
 
 @router.get("/contacts/{contact_id}/timeline")
