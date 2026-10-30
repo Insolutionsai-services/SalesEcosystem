@@ -1,0 +1,51 @@
+sku,name,price,stock,description,venture,location,plot_no,size_sqyd,facing,road_ft,corner,rate_per_sqyd
+SM-01,Sunrise Meadows - Plot 1,3045000,1,"200 sq yd west facing corner plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,1,200,West,40,yes,14500
+SM-02,Sunrise Meadows - Plot 2,3988000,1,"267 sq yd north-east facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,2,267,North-East,40,,14500
+SM-03,Sunrise Meadows - Plot 3,3219000,1,"222 sq yd north facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,3,222,North,60,,14500
+SM-04,Sunrise Meadows - Plot 4,4350000,1,"300 sq yd south facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,4,300,South,30,,14500
+SM-05,Sunrise Meadows - Plot 5,3764000,1,"240 sq yd east facing corner plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,5,240,East,40,yes,14500
+SM-06,Sunrise Meadows - Plot 6,2900000,1,"200 sq yd west facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,6,200,West,40,,14500
+SM-07,Sunrise Meadows - Plot 7,3988000,1,"267 sq yd north-east facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,7,267,North-East,60,,14500
+SM-08,Sunrise Meadows - Plot 8,3219000,1,"222 sq yd north facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,8,222,North,30,,14500
+SM-09,Sunrise Meadows - Plot 9,4350000,1,"300 sq yd south facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,9,300,South,40,,14500
+SM-10,Sunrise Meadows - Plot 10,3584000,1,"240 sq yd east facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,10,240,East,40,,14500
+SM-11,Sunrise Meadows - Plot 11,2900000,1,"200 sq yd west facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,11,200,West,60,,14500
+SM-12,Sunrise Meadows - Plot 12,3988000,1,"267 sq yd north-east facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,12,267,North-East,30,,14500
+SM-13,Sunrise Meadows - Plot 13,3219000,1,"222 sq yd north facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,13,222,North,40,,14500
+SM-14,Sunrise Meadows - Plot 14,4350000,1,"300 sq yd south facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,14,300,South,40,,14500
+SM-15,Sunrise Meadows - Plot 15,3584000,1,"240 sq yd east facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,15,240,East,60,,14500
+SM-16,Sunrise Meadows - Plot 16,2900000,1,"200 sq yd west facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,16,200,West,30,,14500
+SM-17,Sunrise Meadows - Plot 17,3988000,1,"267 sq yd north-east facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,17,267,North-East,40,,14500
+SM-18,Sunrise Meadows - Plot 18,3219000,1,"222 sq yd north facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,18,222,North,40,,14500
+SM-19,Sunrise Meadows - Plot 19,4350000,1,"300 sq yd south facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,19,300,South,60,,14500
+SM-20,Sunrise Meadows - Plot 20,3584000,1,"240 sq yd east facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,20,240,East,30,,14500
+SM-21,Sunrise Meadows - Plot 21,3045000,1,"200 sq yd west facing corner plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,21,200,West,40,yes,14500
+SM-22,Sunrise Meadows - Plot 22,3988000,1,"267 sq yd north-east facing plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,22,267,North-East,40,,14500
+SM-23,Sunrise Meadows - Plot 23,3219000,1,"222 sq yd north facing plot in Sunrise Meadows, Shamshabad, 60 ft road, DTCP approved",Sunrise Meadows,Shamshabad,23,222,North,60,,14500
+SM-24,Sunrise Meadows - Plot 24,4350000,1,"300 sq yd south facing plot in Sunrise Meadows, Shamshabad, 30 ft road, DTCP approved",Sunrise Meadows,Shamshabad,24,300,South,30,,14500
+SM-25,Sunrise Meadows - Plot 25,3764000,1,"240 sq yd east facing corner plot in Sunrise Meadows, Shamshabad, 40 ft road, DTCP approved",Sunrise Meadows,Shamshabad,25,240,East,40,yes,14500
+LH-01,Lakeview Heights - Plot 1,3308000,1,"150 sq yd west facing corner plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,1,150,West,40,yes,21000
+LH-02,Lakeview Heights - Plot 2,4802000,1,"222 sq yd north-east facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,2,222,North-East,40,,21000
+LH-03,Lakeview Heights - Plot 3,3507000,1,"167 sq yd north facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,3,167,North,60,,21000
+LH-04,Lakeview Heights - Plot 4,5607000,1,"267 sq yd south facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,4,267,South,30,,21000
+LH-05,Lakeview Heights - Plot 5,4542000,1,"200 sq yd east facing corner plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,5,200,East,40,yes,21000
+LH-06,Lakeview Heights - Plot 6,3150000,1,"150 sq yd west facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,6,150,West,40,,21000
+LH-07,Lakeview Heights - Plot 7,4802000,1,"222 sq yd north-east facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,7,222,North-East,60,,21000
+LH-08,Lakeview Heights - Plot 8,3507000,1,"167 sq yd north facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,8,167,North,30,,21000
+LH-09,Lakeview Heights - Plot 9,5607000,1,"267 sq yd south facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,9,267,South,40,,21000
+LH-10,Lakeview Heights - Plot 10,4326000,1,"200 sq yd east facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,10,200,East,40,,21000
+LH-11,Lakeview Heights - Plot 11,3150000,1,"150 sq yd west facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,11,150,West,60,,21000
+LH-12,Lakeview Heights - Plot 12,4802000,1,"222 sq yd north-east facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,12,222,North-East,30,,21000
+LH-13,Lakeview Heights - Plot 13,3507000,1,"167 sq yd north facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,13,167,North,40,,21000
+LH-14,Lakeview Heights - Plot 14,5607000,1,"267 sq yd south facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,14,267,South,40,,21000
+LH-15,Lakeview Heights - Plot 15,4326000,1,"200 sq yd east facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,15,200,East,60,,21000
+LH-16,Lakeview Heights - Plot 16,3150000,1,"150 sq yd west facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,16,150,West,30,,21000
+LH-17,Lakeview Heights - Plot 17,4802000,1,"222 sq yd north-east facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,17,222,North-East,40,,21000
+LH-18,Lakeview Heights - Plot 18,3507000,1,"167 sq yd north facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,18,167,North,40,,21000
+LH-19,Lakeview Heights - Plot 19,5607000,1,"267 sq yd south facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,19,267,South,60,,21000
+LH-20,Lakeview Heights - Plot 20,4326000,1,"200 sq yd east facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,20,200,East,30,,21000
+LH-21,Lakeview Heights - Plot 21,3308000,1,"150 sq yd west facing corner plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,21,150,West,40,yes,21000
+LH-22,Lakeview Heights - Plot 22,4802000,1,"222 sq yd north-east facing plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,22,222,North-East,40,,21000
+LH-23,Lakeview Heights - Plot 23,3507000,1,"167 sq yd north facing plot in Lakeview Heights, Kompally, 60 ft road, DTCP approved",Lakeview Heights,Kompally,23,167,North,60,,21000
+LH-24,Lakeview Heights - Plot 24,5607000,1,"267 sq yd south facing plot in Lakeview Heights, Kompally, 30 ft road, DTCP approved",Lakeview Heights,Kompally,24,267,South,30,,21000
+LH-25,Lakeview Heights - Plot 25,4542000,1,"200 sq yd east facing corner plot in Lakeview Heights, Kompally, 40 ft road, DTCP approved",Lakeview Heights,Kompally,25,200,East,40,yes,21000

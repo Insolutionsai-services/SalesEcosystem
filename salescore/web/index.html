@@ -493,14 +493,84 @@
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .viz { --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; } }
   :root[data-theme="dark"] .viz { --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; }
   .viz.loading { opacity: .5; }
-  .an-top { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.25fr) repeat(4, minmax(0, 1fr)); }
+  .an-top { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 14px; }
+  .money { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .money .fig { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .money .fig .lbl { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .money .fig .val { font-size: clamp(1.7rem, 3vw, 2.4rem); font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+  .money .fig .sub { font-size: .8rem; color: var(--muted); }
+  .money .fig.in .val { color: var(--agent); } .money .fig.out .val { color: var(--human); }
+  .split { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--line); margin: 14px 0 4px; }
+  .split i { display: block; min-width: 2px; } .split .in { background: var(--agent); } .split .out { background: var(--human); }
+  /* ---- real estate: blueprint + clients ---- */
+  .bp-stats { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 14px; }
+  .bp-stats .tile .val { font-size: 1.5rem; }
+  .bp-stats .tile.available .val { color: var(--agent); } .bp-stats .tile.booked .val { color: var(--human); }
+  .bp-layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+  .bp-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
+  .bp-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1.5px solid; }
+  .bp-map { position: relative; border: 1px solid var(--line-strong); border-radius: var(--r); padding: 22px 18px 18px; overflow: hidden;
+    background-color: var(--surface-2);
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 24px 24px; }
+  .bp-title { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .bp-title b { font-family: var(--font-display); font-size: 1.1rem; display: block; }
+  .bp-north { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--muted); display: grid; place-items: center; font-size: .7rem; font-weight: 700; color: var(--muted); background: var(--surface); }
+  .bp-rows { display: flex; flex-direction: column; gap: 6px; }
+  .bp-row { display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .bp-road { display: flex; align-items: center; justify-content: center; height: 26px; border-radius: 6px; font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); background: repeating-linear-gradient(90deg, var(--surface-3) 0 14px, transparent 14px 22px); border-block: 1.5px dashed var(--line-strong); }
+  .plot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; aspect-ratio: 1.15; min-width: 0; padding: 4px;
+    border-radius: 8px; border: 1.5px solid var(--agent); background: var(--agent-soft); color: var(--ink); cursor: pointer; transition: transform .15s var(--ease), box-shadow .15s var(--ease); }
+  .plot b { font-family: var(--font-display); font-size: 1.05rem; line-height: 1; } .plot span { font-size: .68rem; color: var(--muted); }
+  .plot:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .plot.booked { border-color: var(--human); background: var(--human-soft); }
+  .plot.sold { border-color: var(--line-strong); color: var(--muted); background: repeating-linear-gradient(135deg, var(--surface-3) 0 6px, var(--surface-2) 6px 12px); }
+  .plot[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 1px; }
+  .plot .corner { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink); opacity: .55; }
+  .bp-legend .available { background: var(--agent-soft); border-color: var(--agent); } .bp-legend .booked { background: var(--human-soft); border-color: var(--human); } .bp-legend .sold { background: var(--surface-3); border-color: var(--line-strong); }
+  .facts-list { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: .88rem; } .facts-list dt { color: var(--muted); } .facts-list dd { margin: 0; text-align: right; font-weight: 600; }
+  .who-box { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .broker { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); margin-bottom: 10px; overflow: hidden; }
+  .broker > summary { display: grid; grid-template-columns: minmax(150px, 1.6fr) repeat(6, minmax(66px, 1fr)) 110px; gap: 12px; align-items: center; padding: 12px 16px; cursor: pointer; list-style: none; }
+  .broker > summary::-webkit-details-marker { display: none; }
+  .broker > summary:hover { background: var(--surface-2); }
+  .broker[open] > summary { border-bottom: 1px solid var(--line); background: var(--surface-2); }
+  .broker .c { display: flex; flex-direction: column; line-height: 1.2; } .broker .c small { color: var(--muted); font-size: .72rem; }
+  .broker .c.nm { font-weight: 600; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0 8px; } .broker .c.nm small { flex-basis: 100%; padding-left: 16px; font-weight: 400; } .broker .nm::before { content: "›"; color: var(--muted); transition: transform .15s; } .broker[open] .nm::before { transform: rotate(90deg); }
+  .score { display: flex; align-items: center; gap: 8px; font-weight: 600; } .score .track { flex: 1; height: 6px; border-radius: 9px; background: var(--line); overflow: hidden; } .score .track i { display: block; height: 100%; background: var(--agent); }
+  .broker .body { padding: 4px 12px 12px; overflow-x: auto; }
+  /* ---- real estate: AI suggestions ---- */
+  .sg-sec { margin-top: 18px; } .sg-sec > .panel-head { margin-bottom: 10px; }
+  .alert-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+  .acard { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: var(--r-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .acard.critical { border-left-color: var(--bad); } .acard.warning { border-left-color: var(--human); } .acard.ok { border-left-color: var(--good); }
+  .acard h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .acard ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; }
+  .acard li { padding-left: 14px; position: relative; } .acard li::before { content: ""; position: absolute; left: 0; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  .acard.critical li::before { background: var(--bad); } .acard.warning li::before { background: var(--human); }
+  .acard .clear { color: var(--good); font-size: .88rem; }
+  .how { font-size: .8rem; color: var(--muted); } .how summary { cursor: pointer; width: max-content; color: var(--agent); }
+  .formula { margin-top: 6px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); line-height: 1.55; }
+  .formula code { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: .78rem; color: var(--ink); }
+  .gap-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .gap { border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .gap b { font-size: .95rem; line-height: 1.35; } .gap .bars { display: grid; grid-template-columns: 64px 1fr auto; gap: 6px 10px; align-items: center; font-size: .78rem; color: var(--muted); }
+  .gap .trk { height: 8px; border-radius: 9px; background: var(--line); overflow: hidden; } .gap .trk i { display: block; height: 100%; }
+  .gap .want i { background: var(--human); } .gap .have i { background: var(--agent); }
+  .gap.short { border-color: var(--human); }
+  .chipset { display: flex; flex-wrap: wrap; gap: 5px; } .tag { font-size: .74rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+  .tag.m { background: var(--agent-soft); border-color: var(--agent); color: var(--ink); } .tag.m b { color: var(--agent); }
+  .said { font-size: .78rem; color: var(--muted); font-style: italic; margin-top: 3px; }
+  .st { display: flex; align-items: center; gap: 8px; } .st .trk { width: 70px; height: 6px; border-radius: 9px; background: var(--line); overflow: hidden; } .st .trk i { display: block; height: 100%; background: var(--agent); }
+  @media (max-width: 1180px) { .bp-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) { .bp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .broker > summary { grid-template-columns: 1fr 1fr; } .bp-row { gap: 5px; } .plot b { font-size: .9rem; } }
+  @media (max-width: 640px) { .money { grid-template-columns: 1fr; } }
   .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; display: flex; flex-direction: column; gap: 4px;
     box-shadow: var(--shadow); animation: rise .4s var(--ease) both; }
   .tile .lbl { font-size: .8rem; color: var(--muted); font-weight: 600; }
   .tile .val { font-size: 1.7rem; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
   .tile .sub { font-size: .8rem; color: var(--muted); }
-  .tile.hero-tile { background: linear-gradient(135deg, var(--agent-soft), var(--surface) 70%); }
-  .tile.hero-tile .val { font-size: clamp(2.4rem, 4vw, 3.2rem); }
   .delta { display: inline-flex; align-items: center; gap: 4px; font-size: .76rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; width: fit-content; }
   .delta.up { background: var(--good-soft); color: var(--good); } .delta.down { background: var(--bad-soft); color: var(--bad); } .delta.flat { background: var(--surface-2); color: var(--muted); }
   .an-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); margin-top: 14px; }
@@ -526,7 +596,7 @@
   .prod .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .prod .bar { height: 12px; background: var(--series-1); }
     font: inherit; font-size: .84rem; font-weight: 600; color: var(--ink); cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .2s var(--ease); }
-  @media (max-width: 1180px) { .an-top { grid-template-columns: repeat(2, minmax(0, 1fr)); } .an-top .hero-tile { grid-column: 1 / -1; } }
+  @media (max-width: 1180px) { .an-top { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 900px) { .an-grid, .an-grid.even { grid-template-columns: minmax(0, 1fr); } }
 
   /* ---------- who is signed in ---------- */
@@ -602,6 +672,9 @@
       <div class="nav-label">Grow</div>
       <button data-page="marketing"><svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Marketing</span></button>
       <button data-page="analytics"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-6"/></svg><span>Analytics</span></button>
+      <button data-page="blueprint" data-industry="realestate" hidden><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>Blueprint</span></button>
+      <button data-page="clients" data-industry="realestate" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2A6.5 6.5 0 0 1 21.5 20"/></svg><span>Clients</span></button>
+      <button data-page="suggestions" data-industry="realestate" hidden><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg><span>AI suggestions</span></button>
       <button data-page="quotes"><svg viewBox="0 0 24 24"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>Quotes &amp; orders</span></button>
       <div class="nav-label">Set up</div>
       <button data-page="agents"><svg viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13.5v1M15 13.5v1"/><circle cx="12" cy="3.5" r="1"/></svg><span>Agents</span></button>
@@ -774,6 +847,8 @@
           <div class="seg" role="group" aria-label="Period" id="anPeriod">
             <button type="button" data-days="7">7 days</button><button type="button" data-days="30" aria-pressed="true">30 days</button>
             <button type="button" data-days="90">90 days</button><button type="button" data-days="0">All time</button></div></div>
+        <div class="panel" id="anMoney"><div class="skeleton" style="height:120px"></div></div>
+        <div class="panel" id="anVentures" hidden style="margin-top:14px"></div>
         <div class="an-top" id="anTiles"><div class="skeleton" style="height:120px;grid-column:1/-1"></div></div>
         <div>
           <div class="panel" style="margin-top:14px"><div class="panel-head"><h2>Over time</h2><button class="btn sm ghost" type="button" id="anTableBtn" aria-pressed="false">Show as table</button></div>
@@ -784,6 +859,45 @@
           <div class="panel scroll-x"><div class="panel-head"><h2>Where customers came from</h2></div>
             <table><thead><tr><th>Source</th><th class="r">Enquiries</th><th class="r">Orders</th></tr></thead><tbody id="anSources"></tbody></table></div>
         </div>
+      </section>
+
+      <!-- Real estate (only for companies that sell plots) -->
+      <section class="page" id="page-blueprint" hidden>
+        <div class="page-head"><div><div class="eyebrow">Layout</div><h1>Blueprint</h1>
+          <p>Pick a venture to see its plots. Click a plot to see who bought it, what they paid and where the lead came from.</p></div>
+          <select id="bpVenture" style="width:auto" aria-label="Venture"></select></div>
+        <div class="bp-stats" id="bpStats"></div>
+        <div class="bp-layout">
+          <div class="panel"><div class="panel-head"><h2>Plot layout</h2>
+            <div class="bp-legend"><span><i class="available"></i>Available</span><span><i class="booked"></i>Booked</span><span><i class="sold"></i>Sold</span></div></div>
+            <div class="bp-map" id="bpMap"></div></div>
+          <aside class="panel" id="bpDetail" aria-live="polite"></aside>
+        </div>
+      </section>
+
+      <section class="page" id="page-suggestions" hidden>
+        <div class="page-head"><div><div class="eyebrow">Worked out from your data</div><h1>AI suggestions</h1>
+          <p>What needs attention, what leads asked for against the plots you have left, and how each kind of plot sells. Every figure comes with its formula.</p></div></div>
+        <div class="bp-stats" id="sgStats"></div>
+        <div class="sg-sec"><div class="panel-head"><h2>Alerts</h2><span class="small muted">rules and statistics, checked on every visit</span></div><div class="alert-grid" id="sgAlerts"></div></div>
+        <div class="sg-sec panel"><div class="panel-head"><h2>Demand against plots left</h2><span class="small muted">read from what leads wrote in their messages</span></div>
+          <div class="gap-grid" id="sgGaps"></div>
+          <div class="panel-head" style="margin-top:22px"><h2>Suggested plots for each lead</h2></div>
+          <div class="scroll-x" id="sgLeads"></div>
+          <details class="how" style="margin-top:10px"><summary>How the match is calculated</summary><div class="formula" id="sgMatchFormula"></div></details></div>
+        <div class="sg-sec panel"><div class="panel-head"><h2>How plots are selling</h2>
+          <div class="seg" role="group" aria-label="Group by" id="sgDim"><button type="button" data-dim="venture" aria-pressed="true">Venture</button><button type="button" data-dim="size" aria-pressed="false">Size</button><button type="button" data-dim="facing" aria-pressed="false">Facing</button><button type="button" data-dim="price band" aria-pressed="false">Price band</button></div></div>
+          <div class="scroll-x" id="sgMarket"></div>
+          <details class="how" style="margin-top:10px"><summary>How this is calculated</summary><div class="formula" id="sgMarketFormula"></div></details></div>
+      </section>
+
+      <section class="page" id="page-clients" hidden>
+        <div class="page-head"><div><div class="eyebrow">Brokers who bring you leads</div><h1>Clients</h1>
+          <p>Your clients are the brokers. Open a client to see the leads they brought, what those leads bought, what is still pending and the commission earned.</p></div></div>
+        <div class="bp-stats" id="clStats"></div>
+        <div id="clBrokers"></div>
+        <div class="eyebrow" style="margin:18px 0 8px">Leads that came to you directly</div>
+        <div id="clOwn"></div>
       </section>
 
       <section class="page" id="page-quotes" hidden>
@@ -1660,12 +1774,31 @@ function renderTiles(r) {
   const tile = (lbl, val, sub, key, extra = "") => `<div class="tile ${extra}"><span class="lbl">${lbl}</span><span class="val">${val}</span>
     <span class="sub">${sub}</span>${key ? deltaHtml(c[key], p[key], vs) : ""}</div>`;
   $("#anTiles").innerHTML =
-    tile("Payments received", moneyShort(c.paid), `${r.outstanding > 0.5 ? `${moneyShort(r.outstanding)} still due on ${r.unpaid_orders} order${r.unpaid_orders === 1 ? "" : "s"} · <a href="#" data-goto="quotes">record payments</a>` : "Nothing due"}`, "paid", "hero-tile")
-    + tile("Enquiries", c.enquiries.toLocaleString("en-IN"), "people who asked or arrived as leads", "enquiries")
+    tile("Enquiries", c.enquiries.toLocaleString("en-IN"), "people who asked or arrived as leads", "enquiries")
     + tile("Quotes sent", c.quotes.toLocaleString("en-IN"), `worth ${moneyShort(c.quoted_value)}`, "quotes")
     + tile("Orders", c.orders.toLocaleString("en-IN"), `worth ${moneyShort(c.order_value)}${c.avg_order ? ` · avg ${moneyShort(c.avg_order)}` : ""}`, "orders")
     + tile("Quote → order", pct(c.order_rate), "of quotes became orders", "order_rate");
   [...$("#anTiles").children].forEach((el, i) => (el.style.animationDelay = `${i * 50}ms`));
+}
+function renderMoney(r) {
+  const c = r.current, p = r.previous || {}, total = c.paid + r.outstanding, vs = r.days ? `vs previous ${r.days} days` : "";
+  const when = (iso) => new Date(iso).toLocaleDateString([], { day: "numeric", month: "short" });
+  $("#anMoney").innerHTML = `<div class="panel-head"><h2>Revenue</h2><span class="small muted">money received, and money still to collect</span></div>
+    <div class="money">
+      <div class="fig in"><span class="lbl">Received${r.days ? ` · last ${r.days} days` : ""}</span><span class="val num">${money(c.paid)}</span>
+        <span class="sub">${c.paid_orders} order${c.paid_orders === 1 ? "" : "s"} fully paid ${deltaHtml(c.paid, p.paid, vs)}</span></div>
+      <div class="fig out"><span class="lbl">Pending · all orders</span><span class="val num">${money(r.outstanding)}</span>
+        <span class="sub">${r.unpaid_orders ? `owed by ${r.unpaid_orders} customer order${r.unpaid_orders === 1 ? "" : "s"}` : "Nothing due"}</span></div>
+      <div class="fig"><span class="lbl">Ordered${r.days ? ` · last ${r.days} days` : ""}</span><span class="val num">${money(c.order_value)}</span>
+        <span class="sub">${c.orders} order${c.orders === 1 ? "" : "s"}${c.avg_order ? ` · avg ${moneyShort(c.avg_order)}` : ""}</span></div>
+    </div>
+    ${total > 0 ? `<div class="split" role="img" aria-label="Received ${money(c.paid)}, pending ${money(r.outstanding)}"><i class="in" style="width:${(c.paid / total) * 100}%"></i><i class="out" style="width:${(r.outstanding / total) * 100}%"></i></div>
+      <div class="small muted">${Math.round((c.paid / total) * 100)}% of the money expected has come in</div>` : ""}
+    ${r.dues.length ? `<div class="scroll-x" style="margin-top:14px"><table><thead><tr><th>Customer</th><th>Order</th><th class="r">Pending</th><th class="r">Waiting</th><th class="r">Reminders sent</th><th>Next reminder</th></tr></thead><tbody>
+      ${r.dues.map((d) => `<tr><td>${esc(d.customer || "Customer")}</td><td>#${d.quote_id}</td><td class="r num"><b>${money(d.balance)}</b>${d.paid ? `<div class="small muted">of ${money(d.total)}</div>` : ""}</td>
+        <td class="r num">${d.age_days} day${d.age_days === 1 ? "" : "s"}</td><td class="r num">${d.reminders}</td>
+        <td>${d.next_reminder ? (new Date(d.next_reminder) <= new Date() ? "Next run" : when(d.next_reminder)) : '<span class="muted">All sent</span>'}</td></tr>`).join("")}</tbody></table></div>
+      <div class="small muted" style="margin-top:8px">The Response agent reminds customers on the days set under Agents → Response → "Remind about unpaid orders". <a href="#" data-goto="quotes">Record payments</a></div>` : ""}`;
 }
 function renderTrend(r) {
   const box = $("#anTrend"), tr = r.trend, n = tr.labels.length;
@@ -1737,7 +1870,7 @@ loaders.analytics = async () => {
   try {
     const r = await api(`/v1/analytics?days=${state.anDays}`);
     state.anLast = r;
-    renderTiles(r); renderTrend(r); renderProducts(r);
+    renderMoney(r); renderVentures(r); renderTiles(r); renderTrend(r); renderProducts(r);
   } finally { $("#page-analytics").classList.remove("loading"); }
 };
 $("#anPeriod").addEventListener("click", (e) => {
@@ -1760,7 +1893,132 @@ addEventListener("resize", () => {
     if (state.page === "analytics" && state.anLast && w !== state.anWidth) { state.anWidth = w; renderTrend(state.anLast); }
   });
 });
+$("#anMoney").addEventListener("click", (e) => { if (e.target.closest("[data-goto]")) { e.preventDefault(); $("#quoteStatus").value = "won"; } });
 $("#anTiles").addEventListener("click", (e) => { if (e.target.closest("[data-goto]")) { e.preventDefault(); $("#quoteStatus").value = "won"; } });  // the page opens via data-goto
+
+// ---------- real estate: blueprint and clients ----------
+const PLOT_STATUS = { available: "Available", booked: "Booked", sold: "Sold" };
+state.bp = { data: null, venture: null, sku: null };
+const statTile = (lbl, val, sub, cls = "") => `<div class="tile ${cls}"><span class="lbl">${lbl}</span><span class="val num">${val}</span><span class="sub">${sub}</span></div>`;
+function plotDetail(p, v) {
+  const box = $("#bpDetail");
+  if (!p) { box.innerHTML = `<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/><path d="M3 12h18M12 3v18"/></svg>Click a plot to see its price and buyer</div>`; return; }
+  const b = p.buyer, label = p.status === "sold" ? "Purchased by" : "Booked by";
+  box.innerHTML = `<div class="panel-head"><h2>Plot ${p.no}</h2>${pill(PLOT_STATUS[p.status], p.status === "available" ? "agent" : p.status === "booked" ? "human" : "")}</div>
+    <div class="small muted" style="margin:-8px 0 12px">${esc(v.name)}${v.location ? ` · ${esc(v.location)}` : ""}</div>
+    <dl class="facts-list"><dt>Size</dt><dd>${p.size} sq yd</dd><dt>Facing</dt><dd>${esc(p.facing || "–")}${p.corner ? " · corner" : ""}</dd>
+      <dt>Road</dt><dd>${p.road ? p.road + " ft" : "–"}</dd><dt>Price</dt><dd class="num">${money(p.price)}</dd></dl>
+    ${b ? `<div class="who-box"><div class="eyebrow" style="margin-bottom:8px">${label}</div>
+      <dl class="facts-list"><dt>Name</dt><dd><a href="#" data-contact="${b.contact_id}">${esc(b.name)}</a></dd><dt>Phone</dt><dd>${esc(b.phone || "–")}</dd>
+        <dt>Cost</dt><dd class="num">${money(b.price)}</dd>
+        ${p.status === "sold" ? `<dt>Paid</dt><dd class="num">${money(b.paid)}</dd><dt>Due</dt><dd class="num" style="color:${b.due ? "var(--human)" : "var(--good)"}">${b.due ? money(b.due) : "Cleared"}</dd>` : ""}
+        <dt>${p.status === "sold" ? "Sold on" : "Quoted on"}</dt><dd>${shortDate(b.date)}</dd>
+        <dt>Source</dt><dd>${b.client ? `Client · ${esc(b.client)}` : "Our lead"}</dd></dl></div>`
+      : `<div class="who-box small muted">Nobody has bought this plot yet.</div>`}`;
+}
+function renderBlueprint() {
+  const d = state.bp.data, v = d.ventures.find((x) => x.name === state.bp.venture) || d.ventures[0];
+  if (!v) return;
+  state.bp.venture = v.name;
+  $("#bpStats").innerHTML = statTile("Total plots", v.plots.length, esc(v.location || v.name))
+    + statTile("Available", v.available, "ready to sell", "available") + statTile("Booked", v.booked, "quote sent, waiting", "booked")
+    + statTile("Sold", v.sold, `worth ${moneyShort(v.sold_value)}`);
+  const rows = [], sizes = [10, 10, 5]; // two blocks of ten, then the last five, with a road between them
+  for (let i = 0, n = 0; n < sizes.length && i < v.plots.length; n++) { rows.push(v.plots.slice(i, i + sizes[n])); i += sizes[n]; }
+  const cell = (p) => `<button type="button" class="plot ${p.status}" data-sku="${p.sku}" aria-pressed="${p.sku === state.bp.sku}" title="Plot ${p.no}: ${PLOT_STATUS[p.status]}">
+    ${p.corner ? '<i class="corner" title="Corner plot"></i>' : ""}<b>${p.no}</b><span>${p.size} yd</span></button>`;
+  const block = (ps) => { const r = []; for (let i = 0; i < ps.length; i += 5) r.push(`<div class="bp-row">${ps.slice(i, i + 5).map(cell).join("")}</div>`); return r.join(""); };
+  $("#bpMap").innerHTML = `<div class="bp-title"><div><b>${esc(v.name)}</b><span class="small muted">${esc(v.location || "")} · ${v.plots.length} plots</span></div><div class="bp-north" title="North">N↑</div></div>
+    <div class="bp-rows">${rows.map((ps, i) => (i ? `<div class="bp-road">40 ft road</div>` : "") + block(ps)).join("")}</div>`;
+  plotDetail(v.plots.find((p) => p.sku === state.bp.sku), v);
+}
+loaders.blueprint = async () => {
+  if (!state.bp.data) $("#bpStats").innerHTML = skeletons(4, 76);
+  state.bp.data = await api("/v1/realestate/plots");
+  $("#bpVenture").innerHTML = state.bp.data.ventures.map((v) => `<option ${v.name === state.bp.venture ? "selected" : ""}>${esc(v.name)}</option>`).join("");
+  renderBlueprint();
+};
+$("#bpVenture").onchange = (e) => { state.bp.venture = e.target.value; state.bp.sku = null; renderBlueprint(); };
+$("#bpMap").addEventListener("click", (e) => { const b = e.target.closest("[data-sku]"); if (b) { state.bp.sku = b.dataset.sku; renderBlueprint(); } });
+
+const scoreBar = (n) => n == null ? '<span class="muted">–</span>' : `<span class="score"><span class="num">${n}</span><span class="track"><i style="width:${n}%"></i></span></span>`;
+const leadRows = (list) => list.length ? `<table><thead><tr><th>Lead</th><th>Stage</th><th class="r">Lead score</th><th>Plots bought</th><th class="r">Cost</th><th class="r">Paid</th><th class="r">Pending</th></tr></thead><tbody>
+  ${list.map((c) => `<tr><td><a href="#" data-contact="${c.id}">${esc(c.name)}</a><div class="small muted">${esc(c.city || "")}${c.budget ? ` · budget ${esc(c.budget)}` : ""}</div></td>
+    <td>${pill(nice(c.stage), c.stage === "won" ? "good" : "")}</td><td class="r num">${c.score == null ? "–" : Math.round(c.score * 100)}</td>
+    <td>${c.plots.length ? c.plots.map(esc).join(", ") : '<span class="muted">–</span>'}</td><td class="r num">${c.value ? money(c.value) : "–"}</td>
+    <td class="r num">${c.value ? money(c.paid) : "–"}</td><td class="r num">${c.due ? `<b style="color:var(--human)">${money(c.due)}</b>` : "–"}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No leads yet</div>`;
+const fig = (v, l, warn) => `<span class="c"><b class="num" style="${warn ? "color:var(--human)" : ""}">${v}</b><small>${l}</small></span>`;
+loaders.clients = async () => {
+  if (!state.brokers) $("#clStats").innerHTML = skeletons(4, 76);
+  const r = state.brokers = await api("/v1/realestate/clients");
+  $("#clStats").innerHTML = statTile("Clients", r.clients.length, "brokers working with you")
+    + statTile("Leads", r.leads, `${r.clients.reduce((n, c) => n + c.leads, 0)} brought by clients`)
+    + statTile("Sold through clients", moneyShort(r.via_clients), `of ${moneyShort(r.sold_value)} sold in total · ${moneyShort(r.commission)} commission earned`)
+    + statTile("Pending from leads", moneyShort(r.due), "balance still to collect", "booked");
+  $("#clBrokers").innerHTML = r.clients.map((c) => `<details class="broker"><summary>
+      <span class="c nm">${esc(c.name)}<small>${esc(c.city || "")}${c.commission_pct ? ` · ${c.commission_pct}% commission` : ""}</small></span>
+      ${fig(c.leads, "leads brought")}${fig(c.plots, "plots bought")}${fig(moneyShort(c.value), "sold")}${fig(moneyShort(c.due), "pending", c.due)}
+      ${fig(`${c.buyers}/${c.leads}`, "converted")}${fig(moneyShort(c.commission), "commission earned")}
+      <span class="c" title="Client score: leads who bought (50), sales vs the best client (30), amount collected (20)">${scoreBar(c.score)}<small>client score</small></span></summary>
+      <div class="body">${leadRows(c.list)}</div></details>`).join("") || `<div class="empty">No clients yet</div>`;
+  $("#clOwn").innerHTML = `<details class="broker"><summary>
+      <span class="c nm">Direct leads<small>no client involved</small></span>${fig(r.own.leads, "leads")}${fig(r.own.plots, "plots bought")}${fig(moneyShort(r.own.value), "sold")}${fig(moneyShort(r.own.due), "pending", r.own.due)}
+      ${fig(`${r.own.buyers}/${r.own.leads}`, "converted")}<span></span><span></span></summary><div class="body">${leadRows(r.own.list)}</div></details>`;
+};
+
+// ---------- real estate: AI suggestions ----------
+state.sg = null; state.sgDim = "venture";
+const SEV = { critical: ["Critical", "bad"], warning: ["Needs a look", "human"], ok: ["All clear", "good"] };
+const WANT_TAGS = (w) => [w.budget ? `Budget ${moneyShort(w.budget)}` : "", w.size ? `${w.size} sq yd` : "", w.facing ? `${nice(w.facing).replace(" ", "-")}-facing`.replace(/^./, (c) => c.toUpperCase()) : "", w.venture || ""].filter(Boolean);
+function renderSuggestions() {
+  const { alerts, demand, market } = state.sg;
+  const bad = alerts.filter((a) => a.severity === "critical").reduce((n, a) => n + a.count, 0), warn = alerts.filter((a) => a.severity === "warning").reduce((n, a) => n + a.count, 0);
+  const short = demand.gaps.filter((g) => g.status === "short").length, matched = demand.leads.filter((l) => l.matches.length).length;
+  $("#sgStats").innerHTML = statTile("Critical alerts", bad, "fix first", bad ? "booked" : "") + statTile("To look at", warn, "stuck, quiet, late or discounted")
+    + statTile("Leads matched", `${matched}/${demand.leads.length}`, "have plots that fit what they asked") + statTile("Short of plots", short, "groups with more leads than plots left");
+  $("#sgAlerts").innerHTML = alerts.map((a) => { const [label, tone] = SEV[a.severity];
+    return `<div class="acard ${a.severity}"><h3><span>${esc(a.title)}</span>${pill(a.count ? `${label} · ${a.count}` : label, tone)}</h3>
+      ${a.count ? `<ul>${a.items.map((i) => `<li>${i.contact_id ? `<a href="#" data-contact="${i.contact_id}">${esc(i.text)}</a>` : esc(i.text)}</li>`).join("")}${a.count > a.items.length ? `<li class="muted">and ${a.count - a.items.length} more</li>` : ""}</ul>` : `<div class="clear">Nothing found.</div>`}
+      <details class="how"><summary>How it's calculated</summary><div class="formula">${esc(a.formula)}<code>${esc(a.values)}</code></div></details></div>`; }).join("");
+  const mx = Math.max(1, ...demand.gaps.map((g) => Math.max(g.leads, g.plots_left)));
+  $("#sgGaps").innerHTML = demand.gaps.map((g) => `<div class="gap ${g.status}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(g.text)}</b>${g.status === "short" ? pill("Short", "human") : g.status === "tight" ? pill("Tight", "human") : pill("OK", "good")}</div>
+      <div class="bars"><span>Leads</span><span class="trk want"><i style="width:${(g.leads / mx) * 100}%"></i></span><b class="num">${g.leads}</b><span>Plots left</span><span class="trk have"><i style="width:${(g.plots_left / mx) * 100}%"></i></span><b class="num">${g.plots_left}</b></div>
+      <div class="small muted">${g.names.map(esc).join(", ")}</div></div>`).join("") || `<div class="empty">No budgets found in messages yet</div>`;
+  $("#sgLeads").innerHTML = demand.leads.length ? `<table><thead><tr><th>Lead</th><th>What they asked for</th><th>Best matching plots</th></tr></thead><tbody>${demand.leads.map((l) => `<tr>
+      <td><a href="#" data-contact="${l.id}">${esc(l.name)}</a><div class="small muted">${esc(nice(l.stage))}</div></td>
+      <td><div class="chipset">${WANT_TAGS(l.wants).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>${l.message ? `<div class="said">“${esc(l.message)}”</div>` : ""}</td>
+      <td>${l.matches.length ? `<div class="chipset">${l.matches.map((m) => `<span class="tag m" title="${esc(m.venture)} · ${m.size} sq yd · ${esc(m.facing || "")}"><b>${m.score}%</b> ${esc(m.sku)} · ${moneyShort(m.price)}</span>`).join("")}</div>` : '<span class="muted">No plot fits yet</span>'}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No lead has mentioned a budget, size or facing yet</div>`;
+  $("#sgMatchFormula").textContent = demand.formula;
+  const rows = market[state.sgDim];
+  $("#sgMarket").innerHTML = `<table><thead><tr><th>${esc(nice(state.sgDim))}</th><th class="r">Plots</th><th>Sold</th><th class="r">Left</th><th class="r">Days to sell</th><th class="r">Days on market</th><th class="r">Leads waiting</th><th>Verdict</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td><b>${esc(r.group)}</b></td><td class="r num">${r.plots}</td><td><span class="st"><span class="num">${r.sold} · ${Math.round(r.sell_through * 100)}%</span><span class="trk"><i style="width:${r.sell_through * 100}%"></i></span></span></td>
+      <td class="r num">${r.available}</td><td class="r num">${r.days_to_sell ?? "–"}</td><td class="r num">${r.days_on_market ?? "–"}</td><td class="r num">${r.leads_waiting}</td>
+      <td>${pill(r.verdict, r.verdict.startsWith("Demand") ? "agent" : r.verdict.startsWith("Slow") ? "human" : "good")}</td></tr>`).join("")}</tbody></table>`;
+  $("#sgMarketFormula").textContent = market.formula;
+}
+loaders.suggestions = async () => {
+  if (!state.sg) $("#sgStats").innerHTML = skeletons(4, 76);
+  state.sg = await api("/v1/realestate/suggestions");
+  renderSuggestions();
+};
+$("#sgDim").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dim]");
+  if (!b) return;
+  state.sgDim = b.dataset.dim;
+  $$("#sgDim button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  renderSuggestions();
+});
+
+function renderVentures(r) {
+  const box = $("#anVentures");
+  box.hidden = !r.ventures;
+  if (!r.ventures) return;
+  const top = Math.max(1, ...r.ventures.map((v) => v.sold_value));
+  box.innerHTML = `<div class="panel-head"><h2>Ventures</h2><span class="small muted">plots sold, booked and still available · <a href="#" data-goto="blueprint">open blueprint</a></span></div>
+    <div class="prod">${r.ventures.map((v, i) => `<div><div class="nm"><span>${esc(v.name)} <span class="muted small">· ${v.sold} sold · ${v.booked} booked · ${v.available} available</span></span><b class="num">${moneyShort(v.sold_value)}</b></div>
+      <div class="bar" style="width:${(v.sold_value / top) * 100}%;animation-delay:${i * 60}ms" title="${esc(v.name)}: ${money(v.sold_value)} sold"></div></div>`).join("")}</div>`;
+}
 
 // ---------- agents ----------
 const STATE_PILL = { on: ["Running", "good"], off: ["Off", ""], always: ["Always on", "agent"], planned: ["Coming later", "human"] };
@@ -2293,6 +2551,12 @@ async function boot() {
     document.body.classList.add("ready");
     renderUser(me.user);
     state.currency = me.currency;
+    if (me.industry === "realestate") {  // plots and brokers instead of products: extra pages and plot words, for this company only
+      $$("[data-industry=realestate]").forEach((b) => (b.hidden = false));
+      SUGGESTIONS.splice(0, SUGGESTIONS.length, "Which client has the most pending dues?", "How many plots are available in Lakeview Heights?", "Any alerts I should look at?", "Who owes us money?");
+      const word = { catalog: "Plots", quotes: "Bookings & sales" };
+      for (const [page, label] of Object.entries(word)) { $(`#nav [data-page=${page}] span`).textContent = label; $(`#page-${page} h1`).textContent = label; }
+    }
     $("#tenantName").textContent = me.name;
     document.title = me.name;
     $("#brandMark").textContent = (me.name.match(/[A-Za-z]/) || ["G"])[0].toUpperCase();

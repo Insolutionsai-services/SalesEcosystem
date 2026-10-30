@@ -1,0 +1,25 @@
+name,phone,email,consent,source,city,customer_type,budget,looking_for,client
+Srinivas Goud,9848020000,srinivas.0@example.com,yes,lead,Hyderabad,NRI,80L,Lakeview Heights,
+Madhavi Latha,9848020137,madhavi.1@example.com,yes,lead,Hyderabad,home buyer,45L,Lakeview Heights,
+Kiran Kumar,9848020274,kiran.2@example.com,yes,lead,Secunderabad,home buyer,35L,Lakeview Heights,
+Padmaja Rao,9848020411,padmaja.3@example.com,yes,lead,Warangal,home buyer,45L,Sunrise Meadows,
+Naveen Chowdary,9848020548,naveen.4@example.com,yes,lead,Hyderabad,investor,80L,Lakeview Heights,
+Swathi Reddy,9848020685,swathi.5@example.com,yes,lead,Karimnagar,home buyer,35L,Sunrise Meadows,
+Harish Babu,9848020822,harish.6@example.com,yes,lead,Hyderabad,investor,35L,Sunrise Meadows,
+Lakshmi Prasanna,9848020959,lakshmi.7@example.com,yes,lead,Hyderabad,home buyer,35L,Lakeview Heights,
+Rohit Varma,9848021096,rohit.8@example.com,yes,Ramesh Reddy,Secunderabad,home buyer,80L,Sunrise Meadows,Ramesh Reddy
+Sandhya Rani,9848021233,sandhya.9@example.com,yes,Ramesh Reddy,Warangal,home buyer,60L,Lakeview Heights,Ramesh Reddy
+Prakash Yadav,9848021370,prakash.10@example.com,yes,Ramesh Reddy,Hyderabad,investor,35L,Lakeview Heights,Ramesh Reddy
+Divya Teja,9848021507,divya.11@example.com,yes,Ramesh Reddy,Karimnagar,home buyer,80L,Sunrise Meadows,Ramesh Reddy
+Mahesh Naidu,9848021644,mahesh.12@example.com,yes,Ramesh Reddy,Hyderabad,home buyer,60L,Sunrise Meadows,Ramesh Reddy
+Bhargavi Devi,9848021781,bhargavi.13@example.com,yes,Ramesh Reddy,Hyderabad,home buyer,35L,Sunrise Meadows,Ramesh Reddy
+Arjun Reddy,9848021918,arjun.14@example.com,yes,Suresh Kumar,Secunderabad,investor,80L,Sunrise Meadows,Suresh Kumar
+Sirisha Kondaveeti,9848022055,sirisha.15@example.com,yes,Suresh Kumar,Warangal,home buyer,80L,Sunrise Meadows,Suresh Kumar
+Vamsi Krishna,9848022192,vamsi.16@example.com,yes,Suresh Kumar,Hyderabad,investor,35L,Sunrise Meadows,Suresh Kumar
+Radhika Menon,9848022329,radhika.17@example.com,yes,Suresh Kumar,Karimnagar,home buyer,35L,Lakeview Heights,Suresh Kumar
+Tarun Goud,9848022466,tarun.18@example.com,yes,Anitha Realty,Hyderabad,NRI,80L,Lakeview Heights,Anitha Realty
+Usha Rani,9848022603,usha.19@example.com,yes,Anitha Realty,Hyderabad,investor,45L,Lakeview Heights,Anitha Realty
+Manoj Kumar,9848022740,manoj.20@example.com,yes,Anitha Realty,Secunderabad,home buyer,35L,Lakeview Heights,Anitha Realty
+Pavani Sharma,9848022877,pavani.21@example.com,yes,Venkat Rao,Warangal,home buyer,35L,Lakeview Heights,Venkat Rao
+Girish Patel,9848023014,girish.22@example.com,yes,Venkat Rao,Hyderabad,investor,45L,Sunrise Meadows,Venkat Rao
+Neelima Rao,9848023151,neelima.23@example.com,yes,Venkat Rao,Karimnagar,investor,35L,Sunrise Meadows,Venkat Rao

@@ -15,7 +15,7 @@ from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone, now
 from ..marketing import attribution, audience, orchestrator, poster, strategy
-from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, receipt, tasks, users
+from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, estate_ai, realestate, receipt, tasks, users
 from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
 from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
@@ -60,7 +60,7 @@ STARTED_WITH = code_version()
 
 @router.get("/me")
 def me(t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in)):
-    return {"id": t.id, "name": t.name, "user": schemas.user_out(user) if user else None, "channel": setting(t, "channel"), "currency": setting(t, "currency"),
+    return {"id": t.id, "name": t.name, "user": schemas.user_out(user) if user else None, "channel": setting(t, "channel"), "currency": setting(t, "currency"), "industry": setting(t, "industry"),
             "stale": code_version() > STARTED_WITH}  # code changed since start: the UI asks for a restart
 
 
@@ -318,7 +318,35 @@ def quote_receipt(quote_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
 @router.get("/analytics")
 def analytics(days: int | None = 30, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Sales dashboard: enquiries, quotes, orders, payments for the last `days` (omit or 0 = all time) + agent results."""
-    return report.report(s, t, days or None)
+    out = report.report(s, t, days or None)
+    if realestate.enabled(t):
+        out["ventures"] = [{k: v[k] for k in ("name", "location", "available", "booked", "sold", "sold_value")} for v in realestate.plots(s, t)["ventures"]]
+    return out
+
+
+def _estates(t: Tenant) -> Tenant:
+    if not realestate.enabled(t):
+        raise HTTPException(404, "this company does not sell plots")
+    return t
+
+
+@router.get("/realestate/plots")
+def estate_plots(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """The blueprint: every venture with its plots, their status and who bought or booked them."""
+    return realestate.plots(s, _estates(t))
+
+
+@router.get("/realestate/suggestions")
+def estate_suggestions(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """AI suggestions: alerts with their formulas, what leads asked for against the plots left, and how each kind of plot sells."""
+    at = now()
+    return {"alerts": estate_ai.alerts(s, _estates(t), at), "demand": estate_ai.demand(s, t), "market": estate_ai.market(s, t, at)}
+
+
+@router.get("/realestate/clients")
+def estate_clients(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Clients (brokers) with the leads they brought, purchases, dues, commission and scores."""
+    return realestate.clients(s, _estates(t))
 
 
 @router.get("/plan")

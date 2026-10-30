@@ -8,6 +8,7 @@ from sqlalchemy import case, func, select
 
 from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant
 from ..core.utils import now
+from ..services import dues
 from ..services.quotes import PAID_SLACK
 from .metrics import ai_usage
 
@@ -115,7 +116,7 @@ def report(s, tenant: Tenant, days: int | None = 30) -> dict:
         "days": days, "start": start.isoformat(), "end": at_now.isoformat(),
         "current": _kpis(w),
         "previous": _kpis(_window(s, tid, start - timedelta(days=span), start)) if days else None,
-        "outstanding": round(outstanding or 0, 2), "unpaid_orders": unpaid or 0,
+        "outstanding": round(outstanding or 0, 2), "unpaid_orders": unpaid or 0, "dues": dues.pending(s, tenant, at_now, 8),
         "trend": _trend(w, start, at_now, span),
         "agents": _agents(s, tid, start),
         "products": sorted(({"name": k, **{f: round(v, 2) for f, v in d.items()}} for k, d in products.items()),

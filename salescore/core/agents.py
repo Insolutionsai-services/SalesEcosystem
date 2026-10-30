@@ -70,6 +70,8 @@ FIELDS = {
     "response": [
         _f("fastpath.enabled", "Answer routine questions instantly", "bool", "Free and instant"),
         _f("followup_days", "Follow up after (days)", "intlist", "e.g. 1, 3, 7"),
+        _f("payment_reminder_days", "Remind about unpaid orders after (days)", "intlist",
+           "Days after the order was won, e.g. 3, 7, 14. Empty = no reminders. Sent from the amounts saved in the database"),
         _f("qualify", "Questions to ask customers", "list"),
         _f("handoff_rules", "When to hand over to a person", "list"),
         _f("handoff_reply", "Message when handing to a person", "textarea"),

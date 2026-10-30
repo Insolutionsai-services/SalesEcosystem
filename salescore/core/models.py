@@ -93,6 +93,19 @@ class Contact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
+class Client(Base):
+    """A company the business works with: for real estate, a broker who brings leads (a lead's attrs["client"] holds the name)."""
+    __tablename__ = "clients"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    phone: Mapped[str | None] = mapped_column(String(32))
+    email: Mapped[str | None] = mapped_column(String(200))
+    city: Mapped[str | None] = mapped_column(String(100))
+    commission_pct: Mapped[float] = mapped_column(Float, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
 class Consent(Base):
     """Append-only ledger; the latest row per contact decides (DPDP: provable, withdrawable)."""
     __tablename__ = "consents"

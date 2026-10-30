@@ -41,11 +41,15 @@ FILLER_WORDS = {
     "and", "with", "list", "kitna", "hai", "enna", "evvalavu", "irukka",
 }
 
+ID_WORDS = {"plot", "flat", "unit", "villa", "apartment", "shop", "sku"}  # a number after these is a name, not a quantity
+
 
 def product_query(text: str) -> str:
-    """Strips request words and bare counts so only the product description is matched ('20L' and '40kg' stay)."""
+    """Strips request words and bare counts so only the product description is matched ('20L' and '40kg' stay,
+    and so does a number that names the thing: 'plot 14', 'flat 302')."""
     words = re.findall(r"[\w.]+", text.lower())
-    return " ".join(w for w in words if w not in FILLER_WORDS and not w.isdigit())
+    return " ".join(w for i, w in enumerate(words)
+                    if w not in FILLER_WORDS and (not w.isdigit() or (i and words[i - 1] in ID_WORDS)))
 
 
 def extract_qty(text: str) -> float | None:
