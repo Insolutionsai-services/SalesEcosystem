@@ -13,7 +13,7 @@ from ..core.models import Contact, Tenant
 from ..core.playbook import setting
 from ..core.utils import to_json
 from ..marketing import orchestrator, strategy
-from ..services import catalog, plan, tasks
+from ..services import catalog, estate_ai, plan, realestate, tasks
 
 HISTORY = 10  # previous turns kept for context
 
@@ -93,7 +93,27 @@ def _team(s, t, args):
     return [{"agent": a["name"], "status": a["status"], "stats": a["stats"]} for a in roster(s, t)]
 
 
-HANDLERS = {"get_overview": _overview, "whats_waiting": _waiting, "strategy_recommendations": _recommendations,
+ESTATE_TOOL = function_tool(
+    "estate_report", "Plots, clients (the brokers who bring leads), pending dues, alerts and demand against inventory, exactly as computed from the database.",
+    {"topic": {"type": "string", "enum": ["clients", "plots", "dues", "alerts", "demand"]}}, ["topic"])
+
+
+def _estate(s, t, args):
+    from ..core.utils import now
+    from ..services import dues
+    topic = args["topic"]
+    if topic == "clients":
+        return realestate.clients(s, t)
+    if topic == "plots":
+        return [{k: v[k] for k in ("name", "location", "available", "booked", "sold", "sold_value")} for v in realestate.plots(s, t)["ventures"]]
+    if topic == "dues":
+        return dues.pending(s, t, now())
+    if topic == "alerts":
+        return estate_ai.alerts(s, t, now())
+    return {k: v for k, v in estate_ai.demand(s, t).items() if k != "formula"}
+
+
+HANDLERS = {"estate_report": _estate, "get_overview": _overview, "whats_waiting": _waiting, "strategy_recommendations": _recommendations,
             "draft_campaign": _draft, "draft_custom_campaign": _draft_custom, "find_customers": _customers,
             "search_catalog": _catalog, "team_status": _team}
 
@@ -112,14 +132,17 @@ def _run_tool(s, tenant, call: dict, actions: list) -> dict:
 
 def ask(s, tenant: Tenant, message: str, history: list[dict] | None = None) -> dict:
     """Returns {"reply": str, "actions": [{"type": "campaign", ...}]} for the UI to link."""
+    if realestate.enabled(tenant) and (exact := estate_ai.quick_answer(s, tenant, message)):
+        return {"reply": exact, "actions": []}  # exact figures straight from the database: instant and free
     plan.check(s, tenant, "ai")
+    tools = TOOLS + [ESTATE_TOOL] if realestate.enabled(tenant) else TOOLS
     messages = [{"role": "system", "content": SYSTEM.format(company=tenant.name, currency=setting(tenant, "currency"))}]
     messages += [{"role": m["role"], "content": str(m["content"])[:2000]} for m in (history or [])[-HISTORY:]
                  if m.get("role") in ("user", "assistant") and m.get("content")]
     messages.append({"role": "user", "content": message})
     actions: list[dict] = []
     for _ in range(AGENT_MAX_TURNS):
-        reply = llm.chat(messages, TOOLS)
+        reply = llm.chat(messages, tools)
         agent.record_usage(s, tenant, None, "copilot", reply)
         messages.append(reply.message)
         if not reply.tool_calls:

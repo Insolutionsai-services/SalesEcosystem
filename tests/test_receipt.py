@@ -31,3 +31,26 @@ def test_scheduler_sends_receipt_for_an_order_paid_outside_the_app(s, tenant):
     q.paid_amount, q.paid_at = q.total, now()  # payment written straight to the database
     assert receipt.send_due(s, tenant, now()) == 1
     assert receipt.send_due(s, tenant, now()) == 0  # once only
+
+
+def test_payment_reminders_follow_the_schedule(s, tenant, monkeypatch):
+    from datetime import timedelta
+
+    from salescore.analytics import report
+    from salescore.core.utils import now
+    from salescore.services import compliance, dues
+    monkeypatch.setattr(compliance, "in_quiet_hours", lambda *_: False)
+    c = contacts.find_or_create_contact(s, tenant, phone="9876500003", name="Ravi")
+    q = quotes.create_quote(s, tenant, c, [{"sku": "PNT-WE-10", "qty": 2}])
+    quotes.close_quote(s, tenant, q, "won")
+    quotes.record_payment(s, tenant, q, round(q.total / 4, 2))
+    assert dues.remind_due(s, tenant, now()) == 0  # day 0: nothing planned yet
+    row, = dues.pending(s, tenant, now())
+    assert row["balance"] == round(q.total - q.paid_amount, 2) and row["reminders"] == 0
+    r = report.report(s, tenant, 30)
+    assert r["outstanding"] == row["balance"] and r["dues"][0]["quote_id"] == q.id
+    day4 = now() + timedelta(days=4)  # first reminder at 3 days
+    assert dues.remind_due(s, tenant, day4) == 1 and dues.remind_due(s, tenant, day4) == 0  # once per step
+    assert dues.pending(s, tenant, day4)[0]["reminders"] == 1
+    quotes.record_payment(s, tenant, q, q.total - q.paid_amount)
+    assert dues.pending(s, tenant, day4) == [] and dues.remind_due(s, tenant, now() + timedelta(days=8)) == 0

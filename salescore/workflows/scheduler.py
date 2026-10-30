@@ -7,7 +7,7 @@ from ..core.config import DEMO_BOOKING_URL
 from ..core.models import Tenant
 from ..core.utils import now, to_json
 from ..marketing import orchestrator
-from ..services import otp, plan, users
+from ..services import dues, otp, plan, users
 from ..services.activity import log_activity
 from ..services.quotes import expire_quotes
 from ..services.receipt import send_due as send_receipts
@@ -42,6 +42,8 @@ def tick(s, tenant: Tenant, daily: bool = False) -> dict:
     if not agents.enabled(tenant, "orchestrator"):  # nothing runs on its own; people trigger everything
         return {"tasks_run": 0, "messages_sent": 0, "receipts": receipts, "paused": "the Orchestrator agent is off"}
     result = run_due(s, tenant, at) | {"receipts": receipts}
+    if agents.enabled(tenant, "response"):  # chasing payments is the Response agent's job, like follow-ups
+        result["payment_reminders"] = dues.remind_due(s, tenant, at)
     result["marketing"] = orchestrator.run_cycle(s, tenant, daily)  # scheduled sends; daily: measure + next play
     if daily:
         result["training"] = train_tenant(s, tenant)  # relearn from yesterday's outcomes before scoring

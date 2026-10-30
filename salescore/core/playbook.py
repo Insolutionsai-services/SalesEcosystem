@@ -2,12 +2,14 @@
 this module is the single place that knows the platform defaults."""
 
 DEFAULTS = {
+    "industry": None,                # "realestate" switches on the Blueprint and Clients (brokers) pages
     "currency": "INR",
     "timezone": "Asia/Kolkata",
     "country_code": "91",
     "channel": "auto",               # auto (WhatsApp, else email, else console) | whatsapp | email | console
     "stages": None,                  # e.g. ["new", "qualified", "quoted", "won", "lost"]; None = free-form
     "followup_days": [1, 3, 7],
+    "payment_reminder_days": [3, 7, 14],  # days after an order is won; each reminds about the balance still unpaid
     "auto_first_touch": False,
     "pricing": {"max_discount_pct": 0, "auto_approve_discount_pct": 0, "auto_approve_max_total": 0, "tax_pct": 0, "validity_days": 7},
     "compliance": {"quiet_hours": [21, 9], "max_proactive_per_week": 3,

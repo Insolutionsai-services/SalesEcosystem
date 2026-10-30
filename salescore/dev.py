@@ -139,6 +139,8 @@ def _demo(name: str) -> str:
 def seed_demo() -> Tenant:
     """Creates the demo tenant with catalog, leads and order history once; returns it on later runs."""
     init_db()
+    from .dev_estates import seed_estates  # a second demo company (real estate), kept apart
+    seed_estates()
     with Session() as s:
         tenant = s.scalars(select(Tenant).where(Tenant.name.in_((DEMO_TENANT, OLD_DEMO_TENANT)))).first()
         if tenant is None:
