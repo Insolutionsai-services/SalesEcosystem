@@ -88,6 +88,20 @@ def _agents(s, tid: int, start: datetime) -> dict:
     }
 
 
+def _calls(s, tid: int, start: datetime) -> dict:
+    """AI phone calls in the period: how they ended, how fast the agent answered, and what customers said."""
+    rows = s.execute(select(Activity, Contact.name, Contact.phone).outerjoin(Contact, Contact.id == Activity.contact_id)
+                     .where(Activity.tenant_id == tid, Activity.type == "call", Activity.at >= start).order_by(Activity.at.desc())).all()
+    speeds = [(a.data or {})["reply_s"] for a, _, _ in rows if (a.data or {}).get("reply_s")]
+    recent = []
+    for a, name, phone in rows[:8]:
+        d = a.data or {}
+        recent.append({"at": a.at.isoformat(), "who": name or phone or d.get("phone"), "outcome": d.get("outcome"),
+                       "needs": d.get("needs"), "feedback": d.get("feedback")})
+    return {"made": len(rows), "outcomes": dict(Counter((a.data or {}).get("outcome", "unclear") for a, _, _ in rows)),
+            "reply_s": round(sum(speeds) / len(speeds), 1) if speeds else None, "recent": recent}
+
+
 def report(s, tenant: Tenant, days: int | None = 30) -> dict:
     tid, at_now = tenant.id, now()
     if days is None:  # all time
@@ -119,6 +133,7 @@ def report(s, tenant: Tenant, days: int | None = 30) -> dict:
         "outstanding": round(outstanding or 0, 2), "unpaid_orders": unpaid or 0, "dues": dues.pending(s, tenant, at_now, 8),
         "trend": _trend(w, start, at_now, span),
         "agents": _agents(s, tid, start),
+        "calls": _calls(s, tid, start),
         "products": sorted(({"name": k, **{f: round(v, 2) for f, v in d.items()}} for k, d in products.items()),
                            key=lambda p: -p["value"])[:6],
         "sources": sorted(({"source": k, **d} for k, d in sources.items()), key=lambda r: -(r["enquiries"] + r["orders"]))[:6],

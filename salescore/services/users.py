@@ -103,23 +103,13 @@ def create_workspace(s, company: str, email: str, name: str, password_hash: str,
     if s.scalars(select(User).where(User.email == email)).first():
         raise ValueError("that email already has an account")
     name = name.strip() or email.split("@")[0]
-    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={}, source=source or None)  # plan defaults to a 14-day trial
+    tenant = Tenant(name=company.strip() or f"{name}'s workspace", playbook={}, source=source or None, owner_email=email)  # plan defaults to a 14-day trial
     s.add(tenant)
     s.flush()
     user = User(tenant_id=tenant.id, email=email, name=name, role="admin", password_hash=password_hash)
     s.add(user)
     s.flush()
     return user
-
-
-def forgot_password(s, email: str) -> tuple[User, str]:
-    """Sets a fresh temporary password and returns it, so it can be emailed; every other device is signed out."""
-    user = find(s, email)
-    if user is None:
-        raise ValueError("we didn't find an account with this email; try another account or create your account")
-    temp = secrets.token_urlsafe(9)
-    update_user(s, user, password=temp)
-    return user, temp
 
 
 def find(s, email: str) -> User | None:

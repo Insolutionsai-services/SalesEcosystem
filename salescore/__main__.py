@@ -109,6 +109,10 @@ def main() -> None:
     user.add_argument("--name", default="")
     user.add_argument("--role", default="member", choices=["admin", "member"])
     user.add_argument("--company", help="company name (needed when there is more than one)")
+    cl = sub.add_parser("clean-list", help="tidy a business CSV before importing: real mobile numbers only, no duplicates, best prospects first")
+    cl.add_argument("file")
+    cl.add_argument("--out", help="where to write the tidy list (default: <file>_clean.csv; removed rows go to <file>_rejected.csv)")
+    cl.add_argument("--rank-by", help="comma-separated columns that show how big the business is, e.g. sales,staff (default: columns named like sales, turnover, revenue, staff, employees, reviews, rating)")
     pl = sub.add_parser("plan", help="set a company's plan: trial (14 days, small caps) or unlimited")
     pl.add_argument("company")
     pl.add_argument("plan", choices=["trial", "unlimited"])
@@ -122,6 +126,26 @@ def main() -> None:
         return
     if args.cmd == "plan":
         set_plan(args)
+        return
+    if args.cmd == "clean-list":
+        from pathlib import Path
+
+        from .services import clean_list
+        src = Path(args.file)
+        rank_by = [x.strip() for x in args.rank_by.split(",")] if args.rank_by else None
+        kept, rejected, ranks = clean_list.clean(src.read_text(encoding="utf-8-sig"), rank_by)
+        out = Path(args.out) if args.out else src.with_name(src.stem + "_clean.csv")
+        out.write_text(clean_list.to_csv(kept), encoding="utf-8")
+        if rejected:
+            src.with_name(src.stem + "_rejected.csv").write_text(clean_list.to_csv(rejected), encoding="utf-8")
+        why: dict = {}
+        for r in rejected:
+            why[r["rejected_because"]] = why.get(r["rejected_because"], 0) + 1
+        print(f"Kept {len(kept)} of {len(kept) + len(rejected)} rows -> {out}")
+        print("Ranked by: " + (", ".join(ranks) if ranks else "nothing (no size columns found: the file's own order is kept)"))
+        for k, v in why.items():
+            print(f"  removed {v}: {k}")
+        print("The consent column is left as in your file. Calls only go to people with recorded consent.")
         return
     from . import dev as devtools
     if args.cmd == "dev":

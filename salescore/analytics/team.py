@@ -72,9 +72,10 @@ def roster(s, tenant: Tenant) -> list[dict]:
              "replies (30d)": len(replies), "answered instantly": sum(a.data.get("via") == "fastpath" for a in replies),
              "quotes (30d)": _count(s, Quote, Quote.tenant_id == t, Quote.created_at >= since),
              "follow-ups sent (30d)": len(acts_of("msg_out", kind="followup"))}},
-        {"key": "voice", "name": "Voice Agent", "layer": "Doing (later phase)", "status": "planned",
-         "job": "Answers calls for engaged leads (IndicConformer speech-to-text + Indic Parler-TTS).",
-         "stats": {}},
+        {"key": "voice", "name": "Voice Agent", "layer": "Doing", "status": "off",
+         "job": "Phones customers, markets the product in Telugu or English, asks your questions and records what they need.",
+         "stats": {"calls (30d)": len(acts_of("call")), "goal reached": len(acts_of("call", outcome="goal_reached")),
+                   "interested": len(acts_of("call", outcome="interested")), "call back": len(acts_of("call", outcome="callback"))}},
         {"key": "analytics", "name": "Analytics Agent", "layer": "Learning", "status": "active",
          "job": "Measures replies, sales and lift vs holdout per campaign and variant; feeds Strategy.",
          "stats": {
@@ -116,6 +117,10 @@ def _activity_event(a: Activity, who: str) -> dict | None:
             return _event(a.at, "Response", f"Sent {who} a proactive message", "info", c)
         how = " instantly" if via == "fastpath" else ""
         return _event(a.at, "Response", f"Answered {who}{how}: “{_short(a.body, 70)}”", "good", c)
+    if a.type == "call":
+        needs = d.get("needs") if d.get("needs") not in (None, "none stated") else None
+        return _event(a.at, "Voice", f"Phoned {who}: {(d.get('outcome') or 'unclear').replace('_', ' ')}" + (f" · needs {_short(needs, 50)}" if needs else ""),
+                      "good" if d.get("outcome") in ("goal_reached", "interested") else "info", c)
     if a.type == "blocked":
         return _event(a.at, "Verification", f"Stopped a {d.get('kind')} message to {who}: {d.get('reason')}", "warn", c)
     if a.type == "failed":
@@ -133,7 +138,7 @@ def _activity_event(a: Activity, who: str) -> dict | None:
 
 def feed(s, tenant: Tenant, limit: int = 40) -> list[dict]:
     """What the agents did recently, newest first, in plain words."""
-    acts = s.scalars(select(Activity).where(Activity.tenant_id == tenant.id, Activity.type != "llm")
+    acts = s.scalars(select(Activity).where(Activity.tenant_id == tenant.id, Activity.type.notin_(("llm", "voice_turn")))
                      .order_by(Activity.at.desc(), Activity.id.desc()).limit(limit)).all()
     ids = {a.contact_id for a in acts if a.contact_id}
     names = {c.id: c.name or c.phone or c.email for c in s.scalars(select(Contact).where(Contact.id.in_(ids)))} if ids else {}

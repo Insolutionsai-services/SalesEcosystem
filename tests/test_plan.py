@@ -65,6 +65,26 @@ def test_nothing_a_company_sees_names_the_models(client):
         assert not leak.search(client.get(path).text), path
 
 
+def test_test_emails_and_receipts_count_against_the_trial_cap(client, s, monkeypatch):
+    from salescore.core.models import Contact
+    from salescore.services import channels, otp, users
+
+    for k in otp.SMTP_KEYS:
+        monkeypatch.setenv(k, "x")
+    sent = []
+    monkeypatch.setattr(channels, "_email", lambda t, c, text, image=None: sent.append(c.email))
+    owner = users.create_workspace(s, "Spam Co", "spam@studio.in", "S", users.hash_password("spam-pass-11"))
+    tenant = s.get(Tenant, owner.tenant_id)
+    s.flush()
+    h = {"X-API-Key": tenant.api_key}
+    codes = [client.post("/v1/channels/test", json={"to": "spam@studio.in"}, headers=h).status_code for _ in range(4)]
+    assert codes == [200, 200, 200, 402] and len(sent) == 3
+    c = Contact(tenant_id=tenant.id, name="A", email="spam@studio.in")
+    s.add(c)
+    s.flush()
+    assert channels.send_document(s, tenant, c, "receipt", b"%PDF", "r.pdf") is False
+
+
 def test_email_cap_blocks_the_send_instead_of_crashing_the_sender(s, monkeypatch):
     """The 4th email of a trial company is logged as blocked and send() returns False; automated senders keep going."""
     from salescore.core.models import Activity, Contact
@@ -76,7 +96,7 @@ def test_email_cap_blocks_the_send_instead_of_crashing_the_sender(s, monkeypatch
     monkeypatch.setattr(channels, "_email", lambda t, c, text, image=None: sent.append(c.email))
     owner = users.create_workspace(s, "Meera Interiors", "meera@studio.in", "Meera", users.hash_password("meera-pass-1"))
     tenant = s.get(Tenant, owner.tenant_id)
-    c = Contact(tenant_id=tenant.id, name="Arun", email="arun@arunstores.in", last_inbound_at=now())  # inside the reply window
+    c = Contact(tenant_id=tenant.id, name="Meera", email="meera@studio.in", last_inbound_at=now())  # inside the reply window; a free company can only reach itself
     s.add(c)
     s.flush()
     results = [channels.send(s, tenant, c, f"hello {i}", "reply", via="human") for i in range(4)]
@@ -109,3 +129,97 @@ def test_outreach_sends_and_replies_show_in_gyc(client):
     assert devi["mails"] == 2 and devi["kind"] == "hardware" and devi["replied"] and not devi["stopped"]
     cs = client.get("/v1/contacts", headers=h).json()
     assert {c["source"] for c in cs} == {"outreach"} and any(c["opted_out"] for c in cs)
+
+
+@pytest.fixture
+def free(s, monkeypatch):
+    """A free company with email switched on, real customers on its list, and every way out captured."""
+    from salescore.core.models import Contact
+    from salescore.marketing import distribution
+    from salescore.services import channels, otp, users
+
+    for k in otp.SMTP_KEYS:
+        monkeypatch.setenv(k, "x")
+    out = {"email": [], "whatsapp": [], "webhook": []}
+    monkeypatch.setattr(channels, "_email", lambda t, c, text, image=None: out["email"].append(c.email))
+    monkeypatch.setattr(channels, "_whatsapp", lambda t, c, text, image=None: out["whatsapp"].append(c.phone))
+    monkeypatch.setattr(distribution.httpx, "post", lambda url, **kw: out["webhook"].append(url))
+    owner = users.create_workspace(s, "Free Co", "Owner@Studio.in", "O", users.hash_password("owner-pass-11"))
+    t = s.get(Tenant, owner.tenant_id)
+    t.wa_phone_id, t.wa_token = "1", "tok"                                            # as if connected before this rule existed
+    t.playbook = {"distribution": {"webhook_url": "https://hooks.example/x"}}
+    s.add_all([Contact(tenant_id=t.id, name="Stranger", email="stranger@mail.in", phone="919000000001", last_inbound_at=now()),
+               Contact(tenant_id=t.id, name="Me", email="owner@studio.in", last_inbound_at=now())])
+    s.flush()
+    return t, out
+
+
+def test_free_company_cannot_reach_anyone_but_its_proved_email(s, free):
+    from salescore.core.models import Contact
+    from salescore.services import channels
+    t, out = free
+    stranger, me = s.scalars(select(Contact).where(Contact.tenant_id == t.id).order_by(Contact.id)).all()
+    channels.send(s, t, stranger, "hello", "reply", via="human")
+    channels.send_unchecked(s, t, stranger, "hello", "reminder")
+    channels.send_document(s, t, stranger, "receipt", b"%PDF", "r.pdf")
+    channels.send(s, t, stranger, "hello", "reply", channel="email")                  # forcing a channel doesn't help
+    channels.send(s, t, stranger, "hello", "reply", channel="whatsapp")
+    assert out == {"email": [], "whatsapp": [], "webhook": []}
+    channels.send(s, t, me, "hello", "reply", via="human")
+    assert out["email"] == ["owner@studio.in"]
+
+
+def test_free_campaign_is_one_test_copy_to_the_owner(client, s, free):
+    from salescore.marketing import distribution, orchestrator
+    t, out = free
+    c = orchestrator.launch_custom(s, t, "Offer", "", {}, writer="own", message="Big offer this week.")
+    r = orchestrator.approve(s, t, c, send_now=True, destinations=["email"])
+    assert r == {"campaign": c.id, "status": "test_sent", "test_to": "owner@studio.in"}
+    assert out == {"email": ["owner@studio.in"], "whatsapp": [], "webhook": []}       # no customer, no post
+    for bad in (["whatsapp"], ["instagram"], ["meta_ads"], ["google_ads"]):
+        with pytest.raises(ValueError, match="connect"):
+            distribution.choose(t, c, bad)
+    assert out["webhook"] == []
+
+
+def test_approving_through_the_api_without_destinations_is_still_only_a_test(s, free):
+    from salescore.core.models import Campaign
+    from salescore.marketing import distribution
+    t, out = free
+    c = Campaign(tenant_id=t.id, name="x", goal="", segment={}, channel="social", draft="hi", variants=[{"label": "A", "text": "hi"}], stats={})
+    s.add(c)
+    s.flush()
+    assert distribution.dispatch(s, t, c)["status"] == "test_sent" and out["webhook"] == [] and out["whatsapp"] == []
+
+
+def test_team_members_are_not_a_way_around_it(client, s, free):
+    from salescore.services import users
+    t, out = free
+    users.create_user(s, t.id, "victim@mail.in", "V", "member-pass-1", "admin")      # never proved; even as a sales lead
+    s.flush()
+    h = {"X-API-Key": t.api_key}
+    for to in ("victim@mail.in", "stranger@mail.in", "9000000001"):
+        r = client.post("/v1/channels/test", json={"to": to}, headers=h)
+        assert r.status_code == 403 and "owner@studio.in" in r.json()["detail"]
+    assert client.post("/v1/channels/test", json={"to": "owner@studio.in"}, headers=h).status_code == 200
+    assert out["email"] == ["owner@studio.in"]
+
+
+def test_free_company_cannot_connect_whatsapp_or_change_its_proved_email(client, s, free):
+    t, _ = free
+    h = {"X-API-Key": t.api_key}
+    r = client.put("/v1/channels/whatsapp", json={"phone_id": "2", "token": "x"}, headers=h)
+    assert r.status_code == 402 and r.json()["detail"]["limit"] == "public_messaging"
+    client.put("/v1/playbook", json={"owner_email": "victim@mail.in"}, headers=h)
+    s.refresh(t)
+    assert t.owner_email == "owner@studio.in"
+
+
+def test_paid_companies_are_not_affected(s, free):
+    from salescore.core.models import Contact
+    from salescore.services import channels
+    t, out = free
+    t.plan = "unlimited"
+    stranger = s.scalars(select(Contact).where(Contact.tenant_id == t.id).order_by(Contact.id)).first()
+    channels.send(s, t, stranger, "hello", "reply", channel="email", via="human")
+    assert out["email"] == ["stranger@mail.in"]

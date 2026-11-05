@@ -20,10 +20,34 @@ app.include_router(routes.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
 
+MAX_BODY = 12 * 1024 * 1024   # every upload (poster, recording, CSV) is read into memory, and the server has 1 GB
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-       "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; "
+       "font-src https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
        "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 # ponytail: 'unsafe-inline' because the UI is one inline page; move the script to a file and drop it for a strict CSP
+
+
+class BodyLimit:
+    """Counts the bytes as they arrive, so a chunked upload with no Content-Length is stopped too.
+    Added before `guard`, which puts it inside it: the error then reaches the app's normal handlers."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        seen = 0
+
+        async def limited():
+            nonlocal seen
+            message = await receive()
+            seen += len(message.get("body", b""))
+            if seen > MAX_BODY:
+                raise HTTPException(413, "that file is too large (12 MB at most)")
+            return message
+        await self.inner(scope, limited if scope["type"] == "http" else receive, send)
+
+
+app.add_middleware(BodyLimit)
 
 
 @app.middleware("http")
@@ -38,7 +62,7 @@ async def guard(request: Request, call_next):
     h["X-Content-Type-Options"] = "nosniff"
     h["X-Frame-Options"] = "DENY"
     h["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    h["Permissions-Policy"] = "camera=(self), microphone=(), geolocation=(), payment=()"
+    h["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(), payment=()"
     h["Content-Security-Policy"] = CSP
     if request.url.scheme == "https":
         h["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
@@ -65,7 +89,7 @@ def sitemap():
                     media_type="application/xml")
 
 
-MEDIA_NAME =re.compile(r"^[A-Za-z0-9_-]{16}\.(png|jpg|webp)$")
+MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{16}\.(png|jpg|webp)$")
 
 
 @app.get("/media/{name}", include_in_schema=False)

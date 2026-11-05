@@ -1,8 +1,12 @@
 """/v1 endpoints. Routes only parse, authorise and commit; all logic lives in services/ and workflows/."""
 import os
+import secrets
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+import httpx
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import func, select
 
 from ..ai import llm
@@ -15,8 +19,8 @@ from ..core.config import PUBLIC_BASE_URL
 from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone, now
-from ..marketing import attribution, audience, orchestrator, poster, strategy
-from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, estate_ai, realestate, receipt, tasks, users
+from ..marketing import attribution, audience, distribution, orchestrator, poster, strategy
+from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, estate_ai, realestate, receipt, tasks, users, voice_auto
 from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
 from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
@@ -47,7 +51,7 @@ def create_tenant(body: schemas.NewTenant, s=Depends(db)):
 @router.get("/brand")
 def brand():
     """Public: the name on the sign-in page. A company's own name shows once its people are signed in."""
-    return {"name": "GYC Paints & Co"}
+    return {"name": "GYC"}
 
 
 def code_version() -> float:
@@ -69,10 +73,8 @@ def channel_status(t: Tenant) -> dict:
     ok = channels.ready(t)
     return {"channel": setting(t, "channel"),
             "whatsapp": {"ready": ok["whatsapp"], "phone_id": t.wa_phone_id or "", "has_token": bool(t.wa_token),
-                         "webhook": f"{PUBLIC_BASE_URL.rstrip('/')}/webhooks/whatsapp",
-                         "missing_env": [k for k in ("WA_VERIFY_TOKEN", "WA_APP_SECRET") if not os.getenv(k)]},
-            "email": {"ready": ok["email"], "from": os.getenv("SMTP_FROM") or "",
-                      "missing_env": [k for k in channels.SMTP_KEYS if not os.getenv(k)]}}
+                         "webhook": f"{PUBLIC_BASE_URL.rstrip('/')}/webhooks/whatsapp"},
+            "email": {"ready": ok["email"], "from": os.getenv("SMTP_FROM") or ""}}
 
 
 @router.get("/channels")
@@ -83,6 +85,8 @@ def get_channels(t: Tenant = Depends(tenant_of)):
 
 @router.put("/channels/whatsapp", dependencies=[Depends(manager)])
 def set_whatsapp(body: schemas.WhatsAppSetup, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    if body.phone_id.strip() and plan.is_trial(t):
+        raise plan.PlanLimit("public_messaging")
     with transaction(s):
         t.wa_phone_id = body.phone_id.strip() or None
         if body.token.strip():
@@ -114,20 +118,27 @@ def set_gemini_key(body: schemas.GeminiKey, t: Tenant = Depends(tenant_of), s=De
     return _ai_status(t)
 
 
-@router.post("/channels/test")
-def test_channel(body: schemas.ChannelTest, t: Tenant = Depends(tenant_of)):
+@router.post("/channels/test", dependencies=[Depends(manager)])
+def test_channel(body: schemas.ChannelTest, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Sends one test message straight out (no consent rules: it goes to your own number or inbox)."""
     email = norm_email(body.to) if "@" in body.to else None
     phone = None if email else norm_phone(body.to)
     if not (email or phone):
         raise HTTPException(422, "enter a phone number or an email address")
+    if not plan.own_address(t, email) or (plan.is_trial(t) and not email):
+        raise HTTPException(403, f"On the free plan, tests go only to your own email, {t.owner_email}.")
     probe = Contact(tenant_id=t.id, name="Test", phone=phone, email=email)
+    if email:
+        plan.check(s, t, "emails")   # it leaves from the platform's address, to any address typed in: it counts like any other email
     try:
         used = channels.deliver(t, probe, f"Test message from {t.name}: this channel works.", channel="email" if email else "whatsapp")
     except channels.DELIVERY_ERRORS as e:
         raise HTTPException(502, f"not sent: {e}") from e
     if used == "console":
         raise HTTPException(422, f"{'Email' if email else 'WhatsApp'} isn't connected yet")
+    if used == "email" and plan.is_trial(t):
+        with transaction(s):
+            activity.log_activity(s, t.id, None, "msg_out", "test", "email", kind="test")
     return {"sent": used}
 
 
@@ -243,7 +254,7 @@ def approve(task_id: int, body: schemas.Decision, t: Tenant = Depends(tenant_of)
             s=Depends(db)):
     with transaction(s, error_status=409):
         return approvals.decide(s, t, owned(s, Task, task_id, t), body.approve, body.text, body.send_now,
-                                by=user.name if user else "API", send_at=body.send_at)
+                                by=user.name if user else "API", send_at=body.send_at, destinations=body.destinations)
 
 
 @router.get("/contacts")
@@ -437,6 +448,12 @@ def recommendations(t: Tenant = Depends(tenant_of), s=Depends(db)):
     return [p.to_dict() for p in strategy.recommend(s, t)]
 
 
+@router.get("/marketing/destinations")
+def marketing_destinations(t: Tenant = Depends(tenant_of)):
+    """Where a campaign can go, for the choice on the draft."""
+    return distribution.available(t)
+
+
 @router.post("/marketing/launch")
 def launch(body: schemas.LaunchPlay, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Runs Creative -> Verification for a recommended play and queues it for approval."""
@@ -491,6 +508,138 @@ def apply_preset(body: schemas.Preset, t: Tenant = Depends(tenant_of), s=Depends
     with transaction(s):
         t.playbook = agent_config.apply_preset(t.playbook, body.preset)
     return {k: agent_config.state(t, k) for k in agent_config.FIELDS}
+
+
+# ---- Voice agent: the app owns the settings and the screens; the phone-call engine runs as its own small service (voice/phone.py) ----
+VOICE_URL = os.getenv("VOICE_URL", "http://127.0.0.1:8766")
+
+
+def _voice(method: str, path: str, timeout: float = 30, **kw):
+    try:
+        r = httpx.request(method, VOICE_URL + path, headers={"X-Voice-Key": os.getenv("VOICE_KEY", "")}, timeout=timeout, **kw)
+    except httpx.HTTPError:
+        raise HTTPException(503, "Phone calls aren't available right now.")
+    if r.status_code >= 400:
+        detail = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else None
+        raise HTTPException(503 if r.status_code == 401 else r.status_code, detail or "The voice service refused the request.")  # 401 would sign the person out; 502 means the number was refused
+    return r.json()
+
+
+def _call_script(t: Tenant, s) -> dict:
+    v = {k: setting(t, f"voice.{k}") for k in ("agent_name", "company_short", "language", "tone", "main_idea", "goal", "questions")}
+    v["max_call_min"] = voice_auto.call_limit(s, t)
+    if not (v["main_idea"] or "").strip() or not (v["goal"] or "").strip():
+        raise HTTPException(400, "Fill in the main idea and the goal of the call first, then save.")
+    return {**v, "company": t.name, "tenant_id": t.id, "questions": [q.strip() for q in (v["questions"] or "").splitlines() if q.strip()]}
+
+
+@router.get("/voice/status")
+def voice_status(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    used, budget = voice_auto.minutes_used(s, t), voice_auto.budget(t)
+    try:
+        st = _voice("GET", "/status", timeout=3)   # only these: the phone company and setting names stay on the server
+        return {"running": True, "minutes_used": used, "minutes_budget": budget, **{k: st.get(k) for k in ("busy", "phone_ready", "ai_ready")}}
+    except HTTPException as e:
+        return {"running": False, "reason": e.detail, "minutes_used": used, "minutes_budget": budget}
+
+
+@router.post("/voice/chat")
+def voice_chat(body: schemas.VoiceChat, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Rehearse the call: same script, same model, no phone. When it ends, the call is recorded like a real one (who = "Practice call")."""
+    plan.check(s, t, "call_minutes")
+    out = _voice("POST", "/chat", timeout=45, json={"config": {**_call_script(t, s), "customer_business": body.business}, "history": body.history, "end": body.end})
+    sm = out.get("summary")
+    if plan.is_trial(t):   # practice runs on the platform's free keys too, so it counts against the free minutes
+        with transaction(s):
+            activity.log_activity(s, t.id, None, "voice_turn")
+    if sm and body.history:
+        talk = [*body.history, *([{"role": "assistant", "content": out["reply"]}] if out.get("reply") else [])]
+        with transaction(s):
+            activity.log_activity(s, t.id, None, "call", sm.get("needs"), "voice", outcome=sm.get("outcome", "unclear"), needs=sm.get("needs"),
+                                  feedback=sm.get("feedback"), answers=sm.get("answers") or {}, next_step=sm.get("next_step"),
+                                  transcript=talk, phone="Practice call")
+    return out
+
+
+@router.post("/voice/say")
+def voice_say(body: schemas.VoiceSay, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """The agent's spoken voice for the rehearsal chat (WAV audio)."""
+    if (why := voice_auto.out_of_minutes(s, t)):
+        raise HTTPException(400, why)
+    try:
+        r = httpx.post(VOICE_URL + "/tts", headers={"X-Voice-Key": os.getenv("VOICE_KEY", "")}, json={"text": body.text}, timeout=60)
+    except httpx.HTTPError:
+        raise HTTPException(503, "The voice service isn't running.")
+    if r.status_code >= 400:
+        raise HTTPException(502, "The voice service couldn't speak that.")
+    return Response(r.content, media_type="audio/wav")
+
+
+@router.post("/voice/hear")
+async def voice_hear(request: Request, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Words from a recording made in the page (Whisper). The language is the one set for the call: English only unless changed."""
+    audio = await request.body()
+
+    def hear():   # off the event loop: the speech service can take seconds, and every other request would wait behind it
+        if (why := voice_auto.out_of_minutes(s, t)):
+            raise HTTPException(400, why)
+        lang = setting(t, "voice.language")
+        return _voice("POST", "/hear", timeout=30, params={"lang": lang if lang in ("te", "en") else "auto"}, content=audio)
+    return await run_in_threadpool(hear)
+
+
+@router.get("/voice/calls")
+def voice_calls(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Recent phone calls: the CRM records the voice service wrote when each call ended."""
+    rows = s.execute(select(Activity, Contact.name, Contact.phone).outerjoin(Contact, Contact.id == Activity.contact_id)
+                     .where(Activity.tenant_id == t.id, Activity.type == "call").order_by(Activity.at.desc()).limit(20)).all()
+    return [{"at": a.at.strftime("%d %b %H:%M"), "who": name or phone or (a.data or {}).get("phone"),
+             "summary": {k: (a.data or {}).get(k) for k in ("outcome", "needs", "feedback", "answers", "next_step")},
+             "transcript": (a.data or {}).get("transcript", [])} for a, name, phone in rows]
+
+
+@router.post("/voice/result", include_in_schema=False)
+def voice_result(body: schemas.VoiceResult, x_voice_key: str | None = Header(None), s=Depends(db)):
+    """The voice service reports a finished call. The shared key is the only credential: it is made fresh by `make dev`."""
+    key = os.getenv("VOICE_KEY")
+    if not key or not secrets.compare_digest(x_voice_key or "", key):
+        raise HTTPException(403, "not allowed")
+    t = s.get(Tenant, body.tenant_id)
+    if not t:
+        raise HTTPException(404, "unknown company")
+    phone = norm_phone(body.to, setting(t, "country_code"))
+    contact = s.scalar(select(Contact).where(Contact.tenant_id == t.id, Contact.phone == phone)) if phone else None
+    sm, first = body.summary or {}, [x["first_audio_s"] for x in body.timings if x.get("first_audio_s")]
+    with transaction(s):
+        activity.log_activity(s, t.id, contact.id if contact else None, "call", sm.get("needs"), "voice",
+                              outcome=sm.get("outcome", "unclear"), needs=sm.get("needs"), feedback=sm.get("feedback"),
+                              answers=sm.get("answers") or {}, next_step=sm.get("next_step"), transcript=body.transcript, phone=phone, duration_s=round(body.duration_s),
+                              reply_s=round(sum(first) / len(first) + 0.7, 1) if first else None)   # 0.7 s: the wait to be sure the caller finished
+    return {"ok": True}
+
+
+@router.post("/voice/call", dependencies=[Depends(manager)])
+def voice_call(body: schemas.VoiceCall, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Phone one customer now. A person must confirm they agreed to calls; people who opted out are never called.
+    Free companies practise in the browser; a real line is set up by the team once they contact us (then their plan is unlimited)."""
+    if plan.is_trial(t):
+        raise plan.PlanLimit("phone_calls")
+    if not body.agreed:
+        raise HTTPException(400, "Confirm that this person agreed to receive calls.")
+    if not agent_config.enabled(t, "voice"):
+        raise HTTPException(400, "Switch the Voice agent on first.")
+    phone = norm_phone(body.to, setting(t, "country_code"))
+    if not phone or len(phone) < 11:
+        raise HTTPException(400, "Enter a full phone number, e.g. 98765 43210.")
+    contact = s.scalar(select(Contact).where(Contact.tenant_id == t.id, Contact.phone == phone))
+    if contact and contact.opted_out:
+        raise HTTPException(403, "This customer opted out. They are not called.")
+    if not voice_auto.lawful_hour(t, now()):
+        raise HTTPException(400, "Calls can only go out between 09:00 and 21:00.")
+    if (why := voice_auto.out_of_minutes(s, t)):
+        raise HTTPException(400, why)
+    biz = voice_auto.business(contact) if contact else ""
+    return _voice("POST", "/dial", timeout=60, json={"to": "+" + phone, "config": {**_call_script(t, s), "customer_business": biz}})
 
 
 @router.get("/team")

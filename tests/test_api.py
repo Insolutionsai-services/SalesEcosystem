@@ -67,7 +67,7 @@ def test_auto_channel_prefers_whatsapp_then_email(monkeypatch):
     from salescore.services import channels
     for k in channels.SMTP_KEYS:
         monkeypatch.setenv(k, "x")
-    t = SimpleNamespace(playbook={}, wa_phone_id=None, wa_token=None)
+    t = SimpleNamespace(playbook={}, wa_phone_id=None, wa_token=None, plan="unlimited")
     both, mail_only = SimpleNamespace(phone="91", email="a@b.in"), SimpleNamespace(phone=None, email="a@b.in")
     assert channels.pick(t, both) == "email"            # WhatsApp not connected yet
     t.wa_phone_id, t.wa_token = "1", "tok"

@@ -83,15 +83,16 @@ SMTP_KEYS = ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM")
 
 def ready(tenant: Tenant) -> dict[str, bool]:
     """Which real channels have their details filled in."""
-    return {"whatsapp": bool(tenant.wa_phone_id and tenant.wa_token), "email": all(os.getenv(k) for k in SMTP_KEYS)}
+    return {"whatsapp": bool(tenant.wa_phone_id and tenant.wa_token) and not plan.is_trial(tenant), "email": all(os.getenv(k) for k in SMTP_KEYS)}
 
 
 def pick(tenant: Tenant, contact: Contact, channel: str | None = None) -> str:
-    """auto = WhatsApp if connected and the customer has a phone, else email, else console (shown in the app only)."""
+    """auto = WhatsApp if connected and the customer has a phone, else email, else console (shown in the app only).
+    Every message passes through here, so this is where a free company is kept from reaching anyone but itself."""
     channel, ok = channel or setting(tenant, "channel"), ready(tenant)
     if channel in ("auto", "whatsapp") and contact.phone and ok["whatsapp"]:
         return "whatsapp"
-    if channel in ("auto", "email") and contact.email and ok["email"] and not placeholder(contact.email):
+    if channel in ("auto", "email") and contact.email and ok["email"] and not placeholder(contact.email) and plan.own_address(tenant, contact.email):
         return "email"
     return "console"
 
@@ -114,8 +115,22 @@ def deliver(tenant: Tenant, contact: Contact, text: str, image: str | None = Non
     return "console"
 
 
+def email_cap(s, tenant: Tenant, contact: Contact, channel: str | None = None) -> str | None:
+    """Why this email can't go out on a trial, or None. Every email leaves from the platform's own address, so all of them count."""
+    if pick(tenant, contact, channel) != "email":
+        return None
+    try:
+        plan.check(s, tenant, "emails")  # trial companies: three emails in total, counted on the server
+    except plan.PlanLimit as e:
+        return str(e)
+    return None
+
+
 def send_document(s, tenant: Tenant, contact: Contact, text: str, pdf: bytes, filename: str, **meta) -> bool:
     """A transactional PDF (receipt) on the customer's channel, with no marketing checks. Console channel only logs it."""
+    if reason := email_cap(s, tenant, contact):
+        log_activity(s, tenant.id, contact.id, "blocked", body=text, kind="receipt", reason=reason, **meta)
+        return False
     channel = pick(tenant, contact)
     try:
         if channel == "whatsapp":
@@ -156,28 +171,24 @@ def send_document(s, tenant: Tenant, contact: Contact, text: str, pdf: bytes, fi
 
 
 def send(s, tenant: Tenant, contact: Contact, text: str, kind: str, via: str | None = None, image: str | None = None,
-         **meta) -> bool:
+         channel: str | None = None, **meta) -> bool:
     """kind: reply | followup | marketing (see compliance.check); via: fastpath | llm | human | campaign.
+    channel forces one channel instead of the company's setting.
     meta (e.g. campaign_id, variant) is logged with the message so analytics can attribute results."""
-    reason = compliance.check(s, tenant, contact, kind, now())
-    if not reason and pick(tenant, contact) == "email":
-        try:
-            plan.check(s, tenant, "emails")  # trial companies: three emails in total, counted on the server
-        except plan.PlanLimit as e:
-            reason = str(e)
+    reason = compliance.check(s, tenant, contact, kind, now()) or email_cap(s, tenant, contact, channel)
     if reason:
         log_activity(s, tenant.id, contact.id, "blocked", body=text, kind=kind, reason=reason, **meta)
         return False
     if kind == "marketing":
         text += "\n\n" + setting(tenant, "opt_out_footer")
-    return send_unchecked(s, tenant, contact, text, kind, via, image, **meta)
+    return send_unchecked(s, tenant, contact, text, kind, via, image, channel, **meta)
 
 
 def send_unchecked(s, tenant: Tenant, contact: Contact, text: str, kind: str, via: str | None = None,
-                   image: str | None = None, **meta) -> bool:
+                   image: str | None = None, channel: str | None = None, **meta) -> bool:
     """Bypasses the gate. Only for messages the law requires, e.g. confirming an opt-out."""
     try:
-        channel = deliver(tenant, contact, text, image)
+        channel = deliver(tenant, contact, text, image, channel)
     except DELIVERY_ERRORS as e:
         # ponytail: failed sends are logged, not retried; add a retry task when a channel proves flaky
         log_activity(s, tenant.id, contact.id, "failed", body=text, kind=kind, error=str(e), **meta)

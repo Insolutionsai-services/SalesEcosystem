@@ -51,11 +51,11 @@ def sign_up(body: schemas.SignUp, request: Request, response: Response, s=Depend
             raise ValueError(f"passwords need at least {users.MIN_PASSWORD} characters")
         if "@" not in body.email or users.find(s, body.email) or otp.is_reserved(body.email):
             raise ValueError("enter a valid email address that has no account yet")
+        otp.throttle_signups()  # also when codes are on: each one is an email from our address, to anyone who is typed in
         data = {"name": body.name, "company": body.company, "password_hash": users.hash_password(body.password), "source": body.source[:120]}
         if otp.configured():
             otp.send(s, body.email, "signup", data)
             return {"otp": True, "email": body.email.strip().lower()}
-        otp.throttle_signups()
         user = users.create_workspace(s, data["company"], body.email, data["name"], data["password_hash"], data["source"])
         token = users.open_session(s, user)
     _remember(request, response, token)
@@ -64,16 +64,18 @@ def sign_up(body: schemas.SignUp, request: Request, response: Response, s=Depend
 
 @router.post("/auth/forgot")
 def forgot_password(body: schemas.EmailOnly, s=Depends(db)):
-    """Emails a new temporary password. Needs the SMTP_* settings; the person changes it from their profile menu afterwards."""
+    """Emails a code; the password only changes when the code comes back with a new one, so a stranger typing your address changes nothing.
+    The answer is the same for every address: it never tells who has an account."""
     with transaction(s):
         if not otp.configured():
             raise ValueError("password reset by email isn't set up; ask your sales lead for a new password")
         otp.throttle("password reset", 20)
-        user, temp = users.forgot_password(s, body.email)
-        otp.mail(user.email, "Your new password",
-                 f"Hi {user.name},\n\nYour new password is: {temp}\n\nSign in with it, then change it from your profile menu. "
-                 "If you didn't ask for this, contact your sales lead.")
-    return {"sent": user.email}
+        if users.find(s, body.email):
+            try:
+                otp.send(s, body.email, "reset")
+            except ValueError:  # a cooldown or mail error shown only for real accounts would tell who has one
+                pass
+    return {"otp": True, "email": body.email.strip().lower()}
 
 
 @router.post("/auth/verify")
@@ -86,6 +88,9 @@ def verify_code(body: schemas.VerifyCode, request: Request, response: Response, 
             user = users.find(s, body.email)
             if user is None:
                 raise ValueError("that account no longer exists")
+            if not body.new_password:
+                raise ValueError("enter a new password")
+            users.update_user(s, user, password=body.new_password)  # a bad one rolls back, so the code still works; other devices are signed out
         token = users.open_session(s, user)
     _remember(request, response, token)
     return schemas.user_out(user)

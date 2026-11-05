@@ -7,3 +7,7 @@ sales.db
 models/
 media/
 ~$*
+.env.voice
+.venv-voice/
+salescore/voice/models/
+calls.jsonl

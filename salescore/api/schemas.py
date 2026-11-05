@@ -41,16 +41,19 @@ class StockChange(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True)] = ""
 
 
+Short = Annotated[str, StringConstraints(max_length=200)]   # the database columns hold 200; longer input is refused, not a server error
+
+
 class Login(BaseModel):
-    email: str
-    password: str
+    email: Short
+    password: Short
 
 
 class SignUp(BaseModel):
-    name: str = ""
-    company: str = ""
-    email: str
-    password: str
+    name: Short = ""
+    company: Short = ""
+    email: Short
+    password: Short
     source: str = ""  # the ?from=... tags of the link that brought them, if any
 
 
@@ -59,8 +62,9 @@ class EmailOnly(BaseModel):
 
 
 class VerifyCode(BaseModel):
-    email: str
-    code: str
+    email: Short
+    code: Short
+    new_password: Short = ""   # password reset only
 
 
 class PasswordChange(BaseModel):
@@ -106,6 +110,7 @@ class Decision(BaseModel):
     text: str | None = None  # optional edited message that replaces the draft
     send_now: bool = False   # campaigns: ignore the planned send time
     send_at: str | None = None  # campaigns: send at this company-local time instead, "YYYY-MM-DDTHH:MM"
+    destinations: list[str] | None = None  # campaigns: only these, see distribution.DESTINATIONS
 
 
 class HumanReply(BaseModel):
@@ -146,6 +151,30 @@ class Audience(BaseModel):
 class AgentUpdate(BaseModel):
     enabled: bool | None = None
     values: dict = {}
+
+
+class VoiceChat(BaseModel):
+    history: list[dict] = []   # [{role: user|assistant, content}], empty = the call just connected
+    end: bool = False
+    business: str = ""         # what business the customer runs, for the opening line
+
+
+class VoiceSay(BaseModel):
+    text: str
+
+
+class VoiceResult(BaseModel):
+    duration_s: float = 0   # how long the call lasted, for the minutes budget
+    tenant_id: int
+    to: str = ""
+    summary: dict = {}
+    transcript: list[dict] = []
+    timings: list[dict] = []
+
+
+class VoiceCall(BaseModel):
+    to: str
+    agreed: bool = False      # the person confirmed this customer agreed to be called
 
 
 class Preset(BaseModel):
