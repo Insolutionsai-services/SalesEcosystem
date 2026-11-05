@@ -166,10 +166,12 @@ def _chosen_time(tenant: Tenant, text: str) -> datetime:
 
 
 def approve(s, tenant: Tenant, campaign: Campaign, text: str | None = None, send_now: bool = False,
-            send_at: str | None = None) -> dict:
+            send_at: str | None = None, destinations: list[str] | None = None) -> dict:
     """Manager approved (optionally with rewritten copy): re-verify, then send at the planned time or now."""
     if not agents.enabled(tenant, "distribution"):
         raise ValueError("the Distribution agent is off: turn it on in Agents to send campaigns")
+    if destinations is not None:
+        distribution.choose(tenant, campaign, destinations)
     if send_now:
         campaign.send_at = None
     elif send_at:

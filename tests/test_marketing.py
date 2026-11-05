@@ -133,7 +133,7 @@ def test_team_roster_matches_the_plan(s, tenant):
     team = {a["key"]: a for a in roster(s, tenant)}
     assert list(team) == ["data_crm", "strategy", "creative", "verification", "approval", "distribution",
                           "response", "voice", "analytics", "orchestrator"]
-    assert team["voice"]["status"] == "planned" and team["verification"]["status"] == "always"
+    assert team["voice"]["status"] == "off" and team["verification"]["status"] == "always"
     assert all(team[k]["status"] == "on" for k in ("strategy", "creative", "distribution", "response", "analytics"))
 
 

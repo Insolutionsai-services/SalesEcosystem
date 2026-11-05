@@ -62,7 +62,7 @@ def mail(to: str, subject: str, text: str) -> None:
 
 
 def _mail(to: str, code: str) -> None:
-    mail(to, f"Your sign-in code: {code}", f"Your verification code is {code}.\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.")
+    mail(to, f"Your GYC code: {code}", f"Your verification code is {code}.\nIt expires in 10 minutes. If you didn't ask for it, ignore this email.")
 
 
 def send(s, email: str, purpose: str, data: dict | None = None) -> None:

@@ -107,3 +107,58 @@ def test_social_post_carries_image_url(s, tenant, people, monkeypatch):
                                    message="Waterproof your roof before the rains.", visual="ai_poster")
     orchestrator.approve(s, tenant, c, send_now=True)
     assert posted[0]["image_url"].endswith(f"/media/{c.image}")
+
+
+def _wa_and_mail(tenant, monkeypatch):
+    """Both channels connected, deliveries captured instead of sent."""
+    sent = []
+    for k in channels.SMTP_KEYS:
+        monkeypatch.setenv(k, "x")
+    tenant.wa_phone_id, tenant.wa_token = "1", "t"
+    monkeypatch.setattr(channels, "_whatsapp", lambda t, c, text, image=None: sent.append(("whatsapp", c.name)))
+    monkeypatch.setattr(channels, "_email", lambda t, c, text, image=None: sent.append(("email", c.name)))
+    return sent
+
+
+def _draft(s, tenant):
+    return orchestrator.launch_custom(s, tenant, "Pick", "", {}, writer="own", message="Our new range is in stock.")
+
+
+def test_campaign_goes_only_where_the_manager_ticked(s, tenant, people, monkeypatch):
+    sent = _wa_and_mail(tenant, monkeypatch)
+    posted = []
+    monkeypatch.setattr(distribution.httpx, "post", lambda url, **kw: posted.append(kw["json"]) or httpx.Response(200, request=httpx.Request("POST", url)))
+    tenant.playbook = {**tenant.playbook, "distribution": {"webhook_url": "https://hooks.example/ads"}}
+    r = orchestrator.approve(s, tenant, _draft(s, tenant), send_now=True, destinations=["instagram", "google_ads"])
+    assert r["status"] == "sent" and r["posted_to"] == ["Instagram", "Google Ads"] and "sent" not in {k for k in r if k == "sent" and r[k]}
+    assert sent == [] and posted[0]["destinations"] == ["instagram", "google_ads"]      # no customer got a message
+
+    r = orchestrator.approve(s, tenant, _draft(s, tenant), send_now=True, destinations=["whatsapp"])
+    assert r["sent"] > 0 and {ch for ch, _ in sent} == {"whatsapp"} and len(posted) == 1  # no post, no email
+
+
+def test_email_only_never_uses_whatsapp_and_skips_people_without_email(s, tenant, people, monkeypatch):
+    sent = _wa_and_mail(tenant, monkeypatch)
+    r = orchestrator.approve(s, tenant, _draft(s, tenant), send_now=True, destinations=["email"])
+    assert r["status"] == "sent" and r["sent"] == 0 and sent == []                      # these customers have phone numbers only
+
+
+def test_a_destination_that_is_not_connected_is_refused_before_anything_goes(s, tenant, people, monkeypatch):
+    sent = _wa_and_mail(tenant, monkeypatch)
+    c = _draft(s, tenant)
+    with pytest.raises(ValueError, match="connect Instagram, Meta Ads first"):
+        orchestrator.approve(s, tenant, c, send_now=True, destinations=["whatsapp", "instagram", "meta_ads"])
+    with pytest.raises(ValueError, match="pick where"):
+        orchestrator.approve(s, tenant, c, send_now=True, destinations=[])
+    with pytest.raises(ValueError, match="unknown"):
+        orchestrator.approve(s, tenant, c, send_now=True, destinations=["tiktok"])
+    assert sent == [] and c.status != "sent"
+
+
+def test_a_scheduled_campaign_remembers_its_destinations(s, tenant, people, monkeypatch):
+    sent = _wa_and_mail(tenant, monkeypatch)
+    c = _draft(s, tenant)
+    c.send_at = now() + timedelta(hours=2)
+    assert orchestrator.approve(s, tenant, c, destinations=["whatsapp"])["status"] == "scheduled" and sent == []
+    distribution.dispatch_due(s, tenant, now() + timedelta(hours=3))
+    assert c.status == "sent" and c.stats["destination_names"] == ["WhatsApp"] and {ch for ch, _ in sent} == {"whatsapp"}

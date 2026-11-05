@@ -4,8 +4,7 @@ and exact answers to common questions for the "Ask your team" panel."""
 import re
 import statistics
 from collections import defaultdict
-from datetime import datetime, timedelta
-from math import ceil
+from datetime import datetime
 
 from sqlalchemy import func, select
 

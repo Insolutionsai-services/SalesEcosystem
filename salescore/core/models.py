@@ -15,7 +15,7 @@ from sqlalchemy import (
     create_engine,
     inspect,
 )
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy import text as sql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -40,6 +40,7 @@ class Tenant(Base):
     gemini_model: Mapped[str | None] = mapped_column(String(80))  # the flash-lite model that key was checked against
     plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | unlimited; see services/plan.py
     plan_started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    owner_email: Mapped[str | None] = mapped_column(String(200))  # proved at sign-up; the only address a free company can reach. Never editable
     source: Mapped[str | None] = mapped_column(String(120))  # how a self-created company found us, e.g. "mail city=pune kind=smart"
 
 
@@ -70,7 +71,7 @@ class EmailCode(Base):
     __tablename__ = "email_codes"
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(200), index=True)
-    purpose: Mapped[str] = mapped_column(String(10))  # login | signup
+    purpose: Mapped[str] = mapped_column(String(10))  # signup | reset
     code_hash: Mapped[str] = mapped_column(String(64))
     data: Mapped[dict | None] = mapped_column(JSON)
     attempts: Mapped[int] = mapped_column(default=0)
@@ -235,3 +236,7 @@ def add_missing_columns(eng) -> None:
         # companies from before plans existed were created by the platform owner: no trial caps (`salescore plan` can change it)
         tenants = Tenant.__table__
         conn.execute(tenants.update().where(tenants.c.plan.is_(None)).values(plan="unlimited", plan_started_at=now()))
+        # free companies from before owner_email existed: the person who signed up is their first user
+        users = User.__table__
+        first = select(users.c.email).where(users.c.tenant_id == tenants.c.id).order_by(users.c.id).limit(1).scalar_subquery()
+        conn.execute(tenants.update().where(tenants.c.plan == "trial", tenants.c.owner_email.is_(None)).values(owner_email=first))

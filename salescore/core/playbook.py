@@ -25,7 +25,11 @@ DEFAULTS = {
     # send_time "HH:MM": when approved campaigns go out (None = Strategy picks the best hour); webhook_url: social/ads posts go there (Postiz, Zapier, Make, n8n...)
     "distribution": {"webhook_url": None, "send_time": None},
     # which agents run for this company (see core/agents.py); Data/CRM, Verification and Approval are always on
-    "agents": {k: {"enabled": True} for k in ("strategy", "creative", "distribution", "response", "analytics", "orchestrator")},
+    "agents": {**{k: {"enabled": True} for k in ("strategy", "creative", "distribution", "response", "analytics", "orchestrator")},
+               "voice": {"enabled": False}},   # phone calls: off until the company has filled in the call script and switched it on
+    # the outbound phone call: what to say (main_idea), what to achieve (goal), what to find out (questions, one per line)
+    "voice": {"agent_name": "Asha", "company_short": "", "max_call_min": "3", "minutes_budget": "75", "auto_call": "off", "call_from": "10:00", "call_until": "18:00", "gap_min": "5", "language": "auto", "tone": "warm, polite, never pushy",
+              "main_idea": "", "goal": "", "questions": ""},
     "creative": {"variants": 2},
     "brand": {"primary": "#0a7a6a", "accent": "#f2a443", "contact": ""},  # poster colours and contact line
     "tone": "", "languages": ["en"], "qualify": [], "handoff_rules": [],

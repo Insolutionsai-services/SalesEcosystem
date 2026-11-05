@@ -48,6 +48,7 @@ def _demo_users(s, tenant: Tenant) -> None:
         s.execute(delete(LoginToken).where(LoginToken.user_id == old.id))
         s.delete(old)
     for email, name, role, password in DEMO_USERS:
+        password = os.getenv("DEMO_PASSWORD") or password   # set it on any public server: the short default is for local demos only
         user = s.scalars(select(User).where(User.email == email)).first()
         if user is None:
             s.add(User(tenant_id=tenant.id, email=email, name=name, role=role, password_hash=hash_password(password)))
@@ -161,12 +162,41 @@ def seed_demo() -> Tenant:
         return tenant
 
 
+def _start_voice(app_port: int) -> str:
+    """The phone-call engine needs speech libraries, so it has its own Python 3.12 environment (.venv-voice). Start it beside the app
+    when that exists; it only listens on this machine and the app talks to it with a key made fresh each run."""
+    import atexit
+    import secrets
+    import socket
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    py = next((p for p in (root / ".venv-voice/Scripts/python.exe", root / ".venv-voice/bin/python") if p.is_file()), None)
+    if not py:
+        return "off (no .venv-voice: see PLAN.md, Voice)"
+    port = int(os.getenv("VOICE_PORT", 8766))
+    os.environ["VOICE_URL"] = f"http://127.0.0.1:{port}"
+    os.environ["VOICE_APP_URL"] = f"http://127.0.0.1:{app_port}"   # where it reports finished calls
+    if socket.socket().connect_ex(("127.0.0.1", port)) == 0:
+        return f"already running on port {port} (started with `make voice`; its VOICE_KEY must match this app's)"
+    os.environ.setdefault("VOICE_KEY", secrets.token_hex(16))
+    own = {k: v for k, v in os.environ.items() if not k.startswith(("LLM_", "OPENROUTER_", "GEMINI_"))}   # the app's AI settings must not leak in: calls use .env.voice
+    proc = subprocess.Popen([str(py), "-m", "salescore.voice.phone"], cwd=root, env={**own, "PYTHONWARNINGS": "ignore"})
+    atexit.register(proc.terminate)
+    import threading
+
+    from .services import voice_auto
+    threading.Thread(target=voice_auto.loop, daemon=True).start()   # make dev has no cron: check the call list every minute (does nothing unless auto-call is on)
+    return f"started on port {port}"
+
+
 def run(host: str, port: int, open_browser: bool, reload: bool = False) -> None:
     import uvicorn
 
     if host in ("127.0.0.1", "localhost"):  # never on a public host (the Docker image runs `dev` on 0.0.0.0): there, admin calls stay off without ADMIN_KEY
         os.environ.setdefault("ADMIN_KEY", "dev-admin")  # also inherited by the reloader's worker process
     tenant = seed_demo()
+    voice = _start_voice(port)
     url = f"http://{host}:{port}/"
     cfg = llm.settings()
     ai = f"{cfg.provider} / {cfg.model} (lite: {cfg.model_lite})"
@@ -176,7 +206,7 @@ def run(host: str, port: int, open_browser: bool, reload: bool = False) -> None:
     logins = "\n".join(f"            {email} / {password}  ({role})" for email, _, role, password in DEMO_USERS)
     print(f"\n  GYC running\n  UI        {url}\n  Sign in\n{logins}\n"
           f"  API docs  http://{host}:{port}/docs   (API key {tenant.api_key})\n"
-          f"  Admin key {'dev-admin' if admin == 'dev-admin' else 'from .env' if admin else 'NOT SET (admin calls off)'}\n  AI        {ai}\n", flush=True)  # a real key never goes to the logs
+          f"  Admin key {'dev-admin' if admin == 'dev-admin' else 'from .env' if admin else 'NOT SET (admin calls off)'}\n  AI        {ai}\n  Voice     {voice}\n", flush=True)  # a real key never goes to the logs
     if open_browser:
         threading.Timer(2.0, webbrowser.open, [url]).start()
     # reload is opt-in: on some Windows shells the reloader cannot stop its worker and keeps serving old code

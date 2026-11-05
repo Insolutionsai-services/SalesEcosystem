@@ -33,7 +33,7 @@ def s():
     engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
     init_db(engine)
     with sessionmaker(engine, expire_on_commit=False)() as session:
-        tenant = Tenant(name="Demo", playbook=PLAYBOOK)
+        tenant = Tenant(name="Demo", playbook=PLAYBOOK, plan="unlimited")
         session.add(tenant)
         session.flush()
         import_catalog(session, tenant, CATALOG)

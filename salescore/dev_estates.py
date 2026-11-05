@@ -3,6 +3,7 @@ bookings, all from the CSV files in demo/estates. Signs in as re@demo.in / estat
 import csv
 import io
 import json
+import os
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -91,6 +92,7 @@ def seed_estates(s=None) -> Tenant:
     _demand_chats(s, tenant)  # older databases
     s.commit()
     email, name, role, password = ESTATES_USER
+    password = os.getenv("DEMO_PASSWORD") or password
     user = s.scalars(select(User).where(User.email == email)).first()
     if user is None:
         s.add(User(tenant_id=tenant.id, email=email, name=name, role=role, password_hash=hash_password(password)))

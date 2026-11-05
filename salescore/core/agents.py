@@ -10,7 +10,7 @@ ALWAYS_ON = {  # switching these off would break the data, the law, or the human
     "verification": "Required by law: consent, opt-out, quiet hours and price checks.",
     "approval": "Campaigns and large discounts always need a person's OK.",
 }
-PLANNED = {"voice"}
+PLANNED: set[str] = set()   # none left: every agent in the plan now exists
 PLAYS = [("reward_champions", "Reward best customers"), ("win_back", "Win back lapsing customers"),
          ("hot_leads", "Close hot leads"), ("new_leads", "Welcome new leads"), ("clear_overstock", "Clear overstock")]
 
@@ -65,7 +65,7 @@ FIELDS = {
         _f("whatsapp_template.image", "Template has an image header", "bool", "Turn on if the approved template shows a picture on top; posters go there"),
         _f("distribution.send_time", "Send campaigns at (time of day)", "time",
            "Used when you approve a campaign for its planned time. Empty = the Strategy agent picks the best hour. Quiet hours still apply"),
-        _f("distribution.webhook_url", "Social / ads webhook URL", "text", "Postiz, Zapier, Make or n8n"),
+        _f("distribution.webhook_url", "Instagram and ads connection link", "text", "Your webhook from Zapier, Make, n8n or Postiz. Campaigns for Instagram, Meta Ads and Google Ads are sent here"),
     ],
     "response": [
         _f("fastpath.enabled", "Answer routine questions instantly", "bool", "Free and instant"),
@@ -82,10 +82,28 @@ FIELDS = {
     "orchestrator": [
         _f("marketing.auto_draft", "Draft the next best campaign every day", "bool", "Drafts still wait for your approval"),
     ],
-    "voice": [],
+    "voice": [
+        _f("voice.agent_name", "Caller's name", "text", "What the agent calls itself, e.g. Asha"),
+        _f("voice.company_short", "Company name to say", "text", "How the agent says your company on the call, e.g. GYC (leave empty to use the full name)"),
+        _f("voice.main_idea", "Main idea of the call", "textarea",
+           "What your product is, in plain words. The agent says nothing about it beyond this"),
+        _f("voice.goal", "Goal of the call", "textarea", "e.g. Find out if they want a free demo and fix a day and time"),
+        _f("voice.questions", "Questions to ask", "textarea", "One per line. It asks them one at a time and skips any already answered"),
+        _f("voice.language", "Language", "select", "Automatic follows the customer between Telugu and English",
+           options=[{"value": "auto", "label": "Automatic (Telugu and English)"}, {"value": "en", "label": "English only"},
+                    {"value": "te", "label": "Telugu first"}]),
+        _f("voice.tone", "Tone", "text", "e.g. warm, polite, never pushy"),
+        _f("voice.max_call_min", "Longest call (minutes)", "text", "A call is closed politely just before this and cut at this length, e.g. 3. Keeps a call from eating your phone minutes"),
+        _f("voice.minutes_budget", "Phone minutes you have", "text", "Your plan's total call minutes, e.g. 75. Calls stop being made when there is not enough left for another full call"),
+        _f("voice.auto_call", "Call the contact list automatically", "select", "Off by default. When on, it phones customers from your contacts who gave consent, one at a time, inside the window below",
+           options=[{"value": "off", "label": "Off"}, {"value": "on", "label": "On"}]),
+        _f("voice.call_from", "Start calling at", "text", "Local time, 24-hour, e.g. 10:00 (never earlier than 09:00)"),
+        _f("voice.call_until", "Stop calling at", "text", "e.g. 18:00 (never later than 21:00)"),
+        _f("voice.gap_min", "Minutes between calls", "text", "Wait after each call ends before the next one, e.g. 5"),
+    ],
 }
 
-SWITCHABLE = ["strategy", "creative", "distribution", "response", "analytics", "orchestrator"]
+SWITCHABLE = ["strategy", "creative", "distribution", "response", "voice", "analytics", "orchestrator"]
 PRESETS = {
     "full": {"label": "Full AI sales team", "on": SWITCHABLE},
     "replies": {"label": "Customer replies only", "on": ["response", "analytics", "orchestrator"]},

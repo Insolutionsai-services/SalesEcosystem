@@ -21,6 +21,7 @@
     --bg: #f2f5f3; --surface: #ffffff; --surface-2: #edf1ee; --surface-3: #e3e9e5;
     --ink: #12201c; --muted: #5a6964; --line: #dce4e0; --line-strong: #c8d3ce;
     --rail: #0f2723; --rail-2: #163631; --rail-3: #1f4740; --rail-ink: #e6f0ec; --rail-muted: #93aea6;
+    --rail-agent: #3ccab5; --rail-you: #f2a443; --rail-end: #c8392e;   /* accents on the rail, which stays dark in both themes */
     --agent: #0a7a6a; --agent-soft: #dbf1ec; --agent-ring: rgba(10, 122, 106, .22);
     --human: #b25f0d; --human-soft: #fcebd5; --on-human: #ffffff;
     --good: #1b7a44; --good-soft: #dff2e6; --warn: #985700; --warn-soft: #fbefd9; --bad: #b42318; --bad-soft: #fbe3e0;
@@ -368,6 +369,72 @@
   .stat { background: var(--surface-2); border-radius: var(--r-sm); padding: 12px 14px; }
   .stat b { display: block; font-family: var(--font-display); font-size: 1.3rem; font-variant-numeric: tabular-nums; }
   .stat span { font-size: .73rem; color: var(--muted); }
+  /* Voice agent: the practice call sits on the rail's deep green, so it reads as a phone and not as another form */
+  .dests { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .dests legend { padding: 0; margin-bottom: 8px; font-weight: 600; font-size: .86rem; }
+  .vstart ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); counter-reset: st; }
+  .vstart li { counter-increment: st; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 0; padding: 14px; border-radius: var(--r-sm); background: var(--surface-2); }
+  .vstart li::before { content: counter(st); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--agent-soft); color: var(--agent); font-size: .78rem; font-weight: 600; }
+  .vstart li span { font-size: .84rem; color: var(--muted); flex: 1; }
+  .vtop { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .vpanel { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .vgroup { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+  .vgroup legend { padding: 0; margin-bottom: 12px; }
+  .vgrid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vgrid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vgrid .rule input[type="number"], .vgrid .rule input[type="time"] { max-width: none; width: 100%; }
+  .vqs { list-style: none; counter-reset: q; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .vqs li { counter-increment: q; display: flex; align-items: center; gap: 8px; margin: 0; }
+  .vqs li::before { content: counter(q); flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--agent-soft); color: var(--agent); font-size: .76rem; font-weight: 600; }
+  .vqs textarea { flex: 1; min-width: 0; resize: none; overflow: hidden; }
+  .vcall { display: grid; grid-template-columns: minmax(230px, 280px) minmax(0, 1fr); border-radius: var(--r); overflow: hidden; border: 1px solid var(--line); }
+  .vphone { --ring: var(--rail-muted); background: var(--rail); color: var(--rail-ink); padding: 26px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+  .vcall[data-state="listening"] .vphone { --ring: var(--rail-you); }
+  .vcall[data-state="speaking"] .vphone, .vcall[data-state="connecting"] .vphone, .vcall[data-state="thinking"] .vphone { --ring: var(--rail-agent); }
+  .vorb { position: relative; width: 104px; height: 104px; margin: 10px 0 4px; border-radius: 50%; background: var(--rail-3); display: grid; place-items: center; }
+  .vorb::before, .vorb::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--ring); opacity: .55; transition: transform .1s linear, border-color .2s; }
+  .vorb::after { inset: -9px; opacity: .22; }
+  .vinit { font: 700 2.2rem var(--font-display); }
+  .vcall[data-state="listening"] .vorb::before { transform: scale(calc(1 + var(--lvl, 0) * .22)); opacity: .9; }
+  .vcall[data-state="listening"] .vorb::after { transform: scale(calc(1 + var(--lvl, 0) * .42)); opacity: .4; }
+  .vcall[data-state="speaking"] .vorb::before { animation: vpulse 1.2s var(--ease) infinite; }
+  .vcall[data-state="speaking"] .vorb::after { animation: vpulse 1.2s var(--ease) .25s infinite; }
+  .vcall[data-state="thinking"] .vorb::before, .vcall[data-state="connecting"] .vorb::before { animation: vbreathe 1.4s ease-in-out infinite; }
+  @keyframes vpulse { 0% { transform: scale(1); opacity: .75; } 100% { transform: scale(1.32); opacity: 0; } }
+  @keyframes vbreathe { 50% { opacity: .15; } }
+  .vwho { display: flex; flex-direction: column; gap: 2px; min-height: 66px; }
+  .vwho b { font: 700 1.1rem var(--font-display); } .vwho span { font-size: .84rem; color: var(--rail-muted); }
+  .vwho .vclock { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: .78rem; }
+  .vcall[data-state="idle"] .vclock { visibility: hidden; }
+  .vcontrols { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; width: 100%; margin-top: auto; }
+  .vbiz { width: 100%; text-align: left; font-size: .78rem; color: var(--rail-muted); margin: 0; }
+  .vbiz input { margin-top: 5px; width: 100%; background: var(--rail-2); border-color: var(--rail-3); color: var(--rail-ink); }
+  .vbiz input::placeholder { color: var(--rail-muted); }
+  .vcontrols .btn.human { width: 100%; }
+  .vbtn { width: 58px; height: 58px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; transition: transform .15s var(--ease), filter .15s; }
+  .vbtn:hover:not(:disabled) { transform: scale(1.06); filter: brightness(1.08); } .vbtn:active:not(:disabled) { transform: scale(.95); }
+  .vbtn:disabled { opacity: .4; cursor: not-allowed; }
+  .vbtn:focus-visible { outline: 3px solid var(--rail-ink); outline-offset: 2px; }
+  .vbtn svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .vbtn.mic { background: var(--rail-3); color: var(--rail-ink); }
+  .vcall[data-state="listening"] .vbtn.mic { background: var(--rail-you); color: var(--rail); }
+  .vbtn.end { background: var(--rail-end); color: #fff; } .vbtn.end svg { fill: currentColor; stroke: none; }
+  .vlog { background: var(--surface-2); display: flex; flex-direction: column; min-width: 0; }
+  .vchat { flex: 1; min-height: 340px; max-height: 400px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .vhint { margin: auto; max-width: 34ch; text-align: center; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; color: var(--muted); }
+  .vhint b { color: var(--ink); font: 700 1.02rem var(--font-display); }
+  .vdots { display: inline-flex; gap: 4px; padding: 12px 14px; } .vdots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: vbreathe 1s ease-in-out infinite; }
+  .vdots i:nth-child(2) { animation-delay: .15s; } .vdots i:nth-child(3) { animation-delay: .3s; }
+  .vtype { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: var(--surface); } .vtype input { flex: 1; min-width: 0; }
+  .vmeter { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .vbar { flex: 1 1 140px; max-width: 240px; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; } .vbar i { display: block; height: 100%; background: var(--agent); transition: width .4s var(--ease); }
+  .vsum { margin-top: 14px; padding: 14px 16px; background: var(--surface-2); border-radius: var(--r-sm); }
+  .vcontact, .vdial { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--r); }
+  .vcontact a.btn { text-decoration: none; }
+  .vcontact { background: var(--human-soft); border-color: transparent; } .vcontact h3 { margin: 0; font: 700 1.2rem var(--font-display); } .vcontact p { margin: 0; max-width: 60ch; font-size: .92rem; }
+  .vconsent { display: flex; gap: 8px; align-items: flex-start; font-size: .84rem; margin: 0; cursor: pointer; } .vconsent input { width: auto; margin-top: 3px; accent-color: var(--human); }
+  .vhist { padding: 10px 0; border-bottom: 1px solid var(--line); } .vhist summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; cursor: pointer; font-size: .86rem; }
+  @media (max-width: 760px) { .vcall { grid-template-columns: minmax(0, 1fr); } .vchat { min-height: 220px; max-height: 300px; } .vgrid, .vgrid.three { grid-template-columns: minmax(0, 1fr); } }
   .rules { display: flex; flex-direction: column; gap: 16px; }
   .rule label { margin: 0 0 6px; color: var(--ink); font-size: .86rem; }
   .rule .help { font-size: .75rem; color: var(--muted); margin-top: 5px; }
@@ -707,7 +774,13 @@
           <div><div class="eyebrow" id="today">Command centre</div><h1 id="homeTitle">Your AI sales team</h1></div>
           <div class="row"><button class="btn" id="tickBtn">Run due follow-ups</button><button class="btn agent" id="dailyBtn">Run daily analysis</button></div>
         </div>
-        <div class="panel">
+        <div class="panel vstart" id="firstRun" hidden>
+          <div class="panel-head"><h2>Get started in three steps</h2></div>
+          <ol><li><b>Add what you sell</b><span>Your prices let the team answer customers.</span><button class="btn sm" data-goto="catalog">Open Catalog</button></li>
+            <li><b>Add your customers</b><span>Import a CSV, or let enquiries come in.</span><button class="btn sm" data-goto="catalog">Import customers</button></li>
+            <li><b>Hear your AI caller</b><span>Try a free practice call, with you as the customer.</span><button class="btn sm" data-goto="agents" id="startVoice">Try a call</button></li></ol>
+        </div>
+        <div class="panel" id="homeChain">
           <div class="panel-head"><h2>How the team works together</h2><span class="row small muted"><span class="pill agent">agents at work</span><span class="pill human">you</span></span></div>
           <div class="chain" id="chain"></div>
           <div class="loop-note"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/></svg>Analytics feeds every campaign's results back to Strategy, so each cycle aims better. The Orchestrator runs the chain on schedule.</div>
@@ -807,7 +880,6 @@
                 <div id="writerOwn" hidden><label for="cMessage">Your message, sent exactly as written</label>
                   <textarea id="cMessage" rows="4" placeholder="Hi {name}, our monsoon range is in stock. Reply to order."></textarea>
                   <div class="tiny muted">{name} becomes each customer's first name. "Hi {name}," is added if you leave it out.</div></div>
-                <label for="cChannel">Send through</label><select id="cChannel"><option value="messaging">WhatsApp / email to each customer</option><option value="social">One post to my social tool</option></select>
               </div></div>
               <div class="bstep"><div class="bstep-n">3</div><div class="bstep-body">
                 <h3>Picture</h3>
@@ -856,6 +928,7 @@
           <div class="panel scroll-x"><div class="panel-head"><h2>Where customers came from</h2></div>
             <table><thead><tr><th>Source</th><th class="r">Enquiries</th><th class="r">Orders</th></tr></thead><tbody id="anSources"></tbody></table></div>
         </div>
+        <div class="panel" id="anCalls" hidden style="margin-top:14px"></div>
       </section>
 
       <!-- Real estate (only for companies that sell plots) -->
@@ -958,7 +1031,7 @@
           </div>
           <div class="panel stack">
             <div class="row" style="justify-content:space-between"><h3>Email</h3><span id="mailState"></span></div>
-            <p class="small muted" style="margin:0">Set in <span class="mono">.env</span> (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM), then restart <span class="mono">make dev</span>. Posters go as an attachment.</p>
+            <p class="small muted" style="margin:0">Customers without WhatsApp get your messages by email. Posters go as an attachment.</p>
             <div class="tiny muted" id="mailHelp"></div>
             <label for="testTo">Send a test to your own number or email</label>
             <div class="row"><input id="testTo" placeholder="+91 98400 11001 or you@company.in" style="flex:1;min-width:0"><button class="btn" id="testSend">Send test</button></div>
@@ -1009,9 +1082,9 @@
     <div class="login-name">
       <div class="login-top"><span class="live-dot"></span>Sales workspace</div>
       <div class="login-mark" id="loginMark">G</div>
-      <h1 id="loginCompany"><span class="w"><span style="--i:0">GYC</span></span> <span class="w"><span style="--i:1">Paints</span></span> <span class="w"><span style="--i:2">&amp;</span></span> <span class="w"><span style="--i:3">Co</span></span></h1>
+      <h1 id="loginCompany"><span class="w"><span style="--i:0">GYC</span></span></h1>
       <div class="rule"></div>
-      <p class="login-tag">Trusted around the clock. Every reply earns a customer. It predicts your true clients.</p>
+      <p class="login-tag">Your AI sales team. It replies, follows up and sends quotes, and you stay in control.</p>
     </div>
     <div class="login-foot">Powered by Gamyan · <a href="https://www.gamyan.space" target="_blank" rel="noopener">Explore us →</a> · <a href="https://www.gamyan.space/legal#privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://www.gamyan.space/legal#terms" target="_blank" rel="noopener">Terms</a></div>
   </div>
@@ -1045,6 +1118,7 @@
     <form id="otpForm" novalidate hidden>
       <label for="otpCode">Verification code</label>
       <input id="otpCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" required>
+      <div id="otpNew" hidden><label for="otpPass">New password</label><input id="otpPass" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
       <div class="form-error" id="otpError" role="alert" hidden></div>
       <button class="btn human" type="submit" id="otpBtn">Verify and continue</button>
       <div class="otp-row"><button type="button" class="btn ghost sm" id="otpResend">Send a new code</button><button type="button" class="btn ghost sm" id="otpBack">Back</button></div>
@@ -1161,7 +1235,7 @@ function ago(iso) {
 const pct = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
 const pill = (text, tone = "") => `<span class="pill ${tone}">${esc(text)}</span>`;
 const nice = (s) => String(s || "").replaceAll("_", " ");
-const STATUS_TONE = { won: "good", sent: "agent", pending_approval: "human", lost: "bad", expired: "bad", rejected: "bad", scheduled: "agent", needs_fix: "bad", failed: "bad" };
+const STATUS_TONE = { won: "good", sent: "agent", test_sent: "agent", pending_approval: "human", lost: "bad", expired: "bad", rejected: "bad", scheduled: "agent", needs_fix: "bad", failed: "bad" };
 const contactName = (id) => { const c = state.contacts.find((x) => x.id === id); return c ? c.name || c.phone || c.email : `Customer #${id}`; };
 async function loadContacts() { state.contacts = await api("/v1/contacts"); return state.contacts; }
 
@@ -1273,11 +1347,13 @@ async function renderOutreach() {  // companies the outreach mailed (synced in d
 
 loaders.home = async () => {
   renderOutreach();
-  if (!$("#kpis").children.length) { $("#kpis").innerHTML = skeletons(5, 86).replaceAll('style="height:86px;margin:6px 0"', 'style="height:86px"'); $("#feed").innerHTML = skeletons(5, 34); }
+  if (!$("#kpis").children.length) { $("#kpis").innerHTML = skeletons(4, 86).replaceAll('style="height:86px;margin:6px 0"', 'style="height:86px"'); $("#feed").innerHTML = skeletons(5, 34); }
   const [m, team, feed, needs, plays] = await Promise.all([api("/v1/insights"), api("/v1/team"), api("/v1/feed?limit=30"),
     refreshNeeds(), api("/v1/marketing/recommendations"), loadContacts()]);
   const live = liveAgents(feed); state.team = team;
   renderChain(team, live); renderFeed(feed);
+  const fresh = !state.contacts.length;   // a new company sees what to do first, not a wall of zeros
+  $("#firstRun").hidden = !fresh; $("#homeChain").hidden = fresh; $("#kpis").hidden = fresh;
   const ai = m.ai_30d;
   renderTeamPill(team);
   const localRate = ai.local_answer_rate ?? 0;
@@ -1285,15 +1361,16 @@ loaders.home = async () => {
     ["Open pipeline", m.open_pipeline, moneyShort, esc(`forecast ${money(m.forecast_weighted_pipeline)}`)],
     ["First reply", m.median_first_response_min, (x) => (m.median_first_response_min == null ? "–" : `${Math.round(x * 10) / 10} min`), "median, customer to agent"],
     ["Answered instantly", ai.local_answer_rate ?? 0, (x) => (ai.local_answer_rate == null ? "–" : pct(x)), `<div class="meter"><span style="width:${Math.round(localRate * 100)}%"></span></div>`],
-    ["AI cost, 30 days", ai.llm_cost_usd || 0, (x) => `$${x.toFixed(4)}`, esc(`${ai.llm_calls} AI messages`)],
     ["Hot leads", m.hot_leads.length, (x) => String(Math.round(x)), "chance to buy 60% or more"],
   ];
   if ($("#kpis .kpi") === null) $("#kpis").innerHTML = kpis.map(([l]) => `<div class="panel kpi"><div class="eyebrow">${esc(l)}</div><div class="v">–</div><div class="tiny muted"></div></div>`).join("");
   $$("#kpis .kpi").forEach((el, i) => { const [, v, fmt, sub] = kpis[i]; countUp($(".v", el), Number(v) || 0, fmt); $(".tiny", el).innerHTML = sub; });
   const top = [...needs.approvals, ...needs.handoffs].slice(0, 4);
   $("#homeTasks").innerHTML = top.length ? await tasksHtml(top) : `<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Nothing needs you right now. The team is handling it.</div>`;
-  $("#homePlays").innerHTML = plays.slice(0, 2).map(playHtml).join("") || `<div class="empty">No plays right now: every audience is empty, unconsented or on cooldown.</div>`;
+  $("#homePlays").innerHTML = plays.slice(0, 2).map(playHtml).join("") || `<div class="empty">No campaign ideas yet. They appear once you have customers who agreed to hear from you.</div>`;
 };
+$("#startVoice").addEventListener("click", () => { state.agentSel = "voice"; voice.tab = "try"; });
+document.addEventListener("click", (e) => { if (e.target.closest("[data-connect]")) state.agentSel = "distribution"; });   // the ads link lives on the Distribution agent
 $("#tickBtn").onclick = (e) => busy(e.target, async () => { const r = await api("/v1/tick", { method: "POST" }); toast(`${r.tasks_run} due tasks run, ${r.messages_sent} messages sent${r.receipts ? `, ${r.receipts} receipt${r.receipts === 1 ? "" : "s"} sent` : ""}`); loaders.home(); });
 $("#dailyBtn").onclick = (e) => busy(e.target, async () => { const r = await api("/v1/tick?daily=true", { method: "POST" }); $("#insights").textContent = r.insights || "No notes returned."; loaders.home(); });
 
@@ -1310,7 +1387,7 @@ function variantsHtml(c) {
 const isNeeds = (t) => t.kind === "approval" || t.kind === "handoff";
 async function tasksHtml(tasks) {
   const needQuotes = tasks.some((t) => t.data.quote_id), needCampaigns = tasks.some((t) => t.data.campaign_id);
-  const [quotes, campaigns] = await Promise.all([needQuotes ? api("/v1/quotes?status=pending_approval") : [], needCampaigns ? api("/v1/campaigns") : []]);
+  const [quotes, campaigns, dests] = await Promise.all([needQuotes ? api("/v1/quotes?status=pending_approval") : [], needCampaigns ? api("/v1/campaigns") : [], needCampaigns ? api("/v1/marketing/destinations") : []]);
   const qById = Object.fromEntries(quotes.map((q) => [q.id, q])), cById = Object.fromEntries(campaigns.map((c) => [c.id, c]));
   return tasks.map((t) => {
     const kind = t.kind === "approval" ? "" : t.kind === "handoff" ? "handoff" : "other";
@@ -1323,12 +1400,15 @@ async function tasksHtml(tasks) {
       actions = `<button class="btn human" data-approve="1">Approve and send quote</button>`;
     } else if (t.data.campaign_id && cById[t.data.campaign_id]) {
       const c = cById[t.data.campaign_id];
-      body = `<div class="small muted">${esc(c.goal)} · ${c.channel === "social" ? "social post" : "WhatsApp / email"} · ${esc(c.stats?.audience ?? 0)} in audience${c.send_at ? " · planned " + when(c.send_at) : ""}</div>
+      body = `<div class="small muted">${esc(c.goal)} · ${esc(c.stats?.audience ?? 0)} in audience${c.send_at ? " · planned " + when(c.send_at) : ""}</div>
         ${checksHtml(c.checks)}${variantsHtml(c)}${posterTools(c)}
         <div><label for="edit-${t.id}">Replace the copy (optional; leave empty to send both versions)</label><textarea id="edit-${t.id}" rows="2" data-edit></textarea></div>
         <div class="sched"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
           <div class="grow"><label for="at-${t.id}">Send time</label><div class="tiny muted">${c.send_at ? "Planned " + esc(when(c.send_at)) + ". " : ""}Pick another date and time (company time), or leave it empty to keep the plan.</div></div>
-          <input type="datetime-local" id="at-${t.id}" data-sendat style="width:auto"></div>`;
+          <input type="datetime-local" id="at-${t.id}" data-sendat style="width:auto"></div>
+        <fieldset class="dests" data-dests><legend>Where should this go?</legend><div class="checks">${dests.map((d) => `<label class="check ${d.ready ? "" : "empty-opt"}"><input type="checkbox" value="${esc(d.key)}" ${d.ready ? "" : "disabled"}>${esc(d.label)}${d.ready ? "" : `<span class="n">${esc(d.note || "Not connected")}</span>`}</label>`).join("")}</div>
+          <div class="tiny muted">${dests.some((d) => d.note) ? `On the free plan one test copy goes to your own email, and no customer receives anything. To reach customers, <a href="${esc(planInfo?.contact_url || "#")}" target="_blank" rel="noopener">contact us</a>.`
+            : `It goes only to what you tick. With both WhatsApp and Email, each customer gets one message: WhatsApp first, email if they have no number.${dests.some((d) => !d.ready) ? ' <button type="button" class="btn ghost sm" data-goto="agents" data-connect>Connect them</button>' : ""}`}</div></fieldset>`;
       actions = `<button class="btn human" data-approve="1" data-planned>Approve for planned time</button><button class="btn" data-approve="1" data-now="1">Approve and send now</button>`;
     }
     if (t.kind === "approval") actions += `<button class="btn danger" data-approve="0">Reject</button>`;
@@ -1356,11 +1436,14 @@ document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-approve]");
   if (!btn) return;
   const card = btn.closest("[data-task]");
-  const edited = $("[data-edit]", card)?.value.trim() || null;
+  const edited = $("[data-edit]", card)?.value.trim() || null, picks = $("[data-dests]", card);
+  const destinations = picks ? $$("input:checked", picks).map((i) => i.value) : null;
+  if (picks && btn.dataset.approve === "1" && !destinations.length) { toast("Pick where this campaign should go.", true); return picks.scrollIntoView({ block: "center" }); }
   busy(btn, async () => {
-    const r = await api(`/v1/approvals/${card.dataset.task}`, { method: "POST", body: { approve: btn.dataset.approve === "1", text: edited, send_now: btn.dataset.now === "1", send_at: $("[data-sendat]", card)?.value || null } });
+    const r = await api(`/v1/approvals/${card.dataset.task}`, { method: "POST", body: { approve: btn.dataset.approve === "1", text: edited, send_now: btn.dataset.now === "1", send_at: $("[data-sendat]", card)?.value || null, destinations } });
     toast(r.quote ? `Quote #${r.quote} ${nice(r.status)}` : r.status === "scheduled" ? `Approved. Distribution sends it ${when(r.send_at)}.`
-      : r.posted ? "Posted to your social tool" : r.status === "sent" ? `Sent to ${r.sent} customers (${r.blocked} stopped by consent rules)`
+      : r.test_to ? `Test sent to ${r.test_to}. No customer received it.`
+      : r.status === "sent" ? [r.sent != null && `Sent to ${r.sent} customers${r.blocked ? ` (${r.blocked} not reached)` : ""}`, r.posted_to?.length && `Posted to ${r.posted_to.join(", ")}`].filter(Boolean).join(". ")
       : `Campaign ${nice(r.status)}${r.error ? ": " + r.error : ""}`);
     loaders[state.page]?.();
   });
@@ -1632,6 +1715,7 @@ function abHtml(r) {
 function analyticsHtml(c) {
   const r = c.results, st = c.status;
   if (st === "scheduled") return `<div class="mk-empty">Approved. It sends ${esc(when(c.send_at))}.<span class="tiny">Who it went to, and how interested each person is, appear here after it is sent.</span></div>`;
+  if (st === "test_sent") return `<div class="mk-empty">Test copy sent to ${esc(c.stats?.test_to || "your email")}.<span class="tiny">No customer received it. Contact us to reach your customers.</span></div>`;
   if (st === "failed") return `<div class="mk-empty">Sending failed, so there are no results.<span class="tiny">Check the Distribution agent and the channel settings.</span></div>`;
   const sent = sentCount(c), replied = r ? r.replied : 0;
   if (!sent) return `<div class="mk-empty">Nothing has gone out yet.</div>`;
@@ -1642,7 +1726,7 @@ function analyticsHtml(c) {
 function campaignDetailHtml(c) {
   if (!c) return `<div class="empty">Pick a campaign on the left to see how it did.</div>`;
   return `<div class="stack" style="gap:14px">
-    <div class="panel-head" style="margin:0"><h2>${esc(c.name)}</h2><span class="tiny muted">${c.sent_at ? "Sent " + esc(when(c.sent_at)) : ""}</span></div>
+    <div class="panel-head" style="margin:0"><h2>${esc(c.name)}</h2><span class="tiny muted">${c.sent_at ? "Sent " + esc(when(c.sent_at)) : ""}${c.stats?.destination_names ? " to " + esc(c.stats.destination_names.join(", ")) : ""}</span></div>
     ${analyticsHtml(c)}
     <details><summary>Message and picture</summary><div class="stack" style="margin-top:8px">${variantsHtml(c)}${c.image_url ? `<img class="poster" src="${esc(c.image_url)}" alt="Campaign poster">` : ""}</div></details></div>`;
 }
@@ -1684,8 +1768,9 @@ loaders.marketing = async () => {
   $("#writerAiBtn").title = on.creative ? "" : "The Creative agent is off (Agents page)";
   if (!on.creative) setWriter("own");
   await loadCriteria();
+  $("#playList").closest(".panel").hidden = on.strategy && !plays.length;   // nothing to suggest: no empty box above the campaign form
   $("#playList").innerHTML = !on.strategy ? `<div class="empty">The Strategy agent is off. Write your own campaign below, or turn Strategy on in Agents.</div>`
-    : plays.map(playHtml).join("") || `<div class="empty">No plays right now: every audience is empty, unconsented or on cooldown.</div>`;
+    : plays.map(playHtml).join("") || `<div class="empty">No campaign ideas yet. They appear once you have customers who agreed to hear from you.</div>`;
   const drafts = list.filter((c) => DRAFT_STATES.includes(c.status));
   mkt.done = list.filter((c) => !DRAFT_STATES.includes(c.status));
   if (!mkt.done.some((c) => c.id === mkt.picked)) mkt.picked = mkt.done[0]?.id ?? null;
@@ -1718,7 +1803,7 @@ $("#cCreate").onclick = (e) => busy(e.target, async () => {
   if (builder.writer === "own" && !message) return toast("Write your message, or choose Write with AI", true);
   if (builder.visual === "upload" && !file) return toast("Choose the image to upload", true);
   let c = await api("/v1/campaigns", { method: "POST", body: { name, goal, message, writer: builder.writer, visual: builder.visual,
-    segment: segmentFromBuilder(), channel: $("#cChannel").value } });
+    segment: segmentFromBuilder() } });
   if (builder.visual === "upload") c = await api(`/v1/campaigns/${c.id}/image`, { method: "POST", file });
   toast(c.checks.ok ? `Draft ready for ${c.stats.audience} customers. Approve it in Needs you.` : "Draft ready, but Verification found problems. See Needs you.", !c.checks.ok);
   ["#cName", "#cGoal", "#cMessage"].forEach((s) => ($(s).value = "")); $("#cImage").value = ""; $("#cImagePreview").hidden = true;
@@ -1872,12 +1957,26 @@ function renderProducts(r) {
   $("#anSources").innerHTML = r.sources.map((x) => `<tr><td>${esc(nice(x.source))}</td><td class="r num">${x.enquiries}</td><td class="r num">${x.orders}</td></tr>`).join("")
     || `<tr><td colspan="3" class="empty">No data in this period</td></tr>`;
 }
+// Phone feedback: what the Voice agent's calls found out. Only shown once there has been a call in the period.
+function renderCalls(r) {
+  const c = r.calls, box = $("#anCalls");
+  box.hidden = !c || !c.made;
+  if (box.hidden) return;
+  const n = (k) => c.outcomes[k] || 0, tile = (lbl, val, sub) => `<div class="tile"><span class="lbl">${lbl}</span><span class="val">${val}</span><span class="sub">${sub}</span></div>`;
+  const rows = c.recent.map((x) => { const [label, tone] = OUTCOME[x.outcome] || ["Unclear", ""];
+    return `<tr><td>${esc(shortDate(x.at.slice(0, 10)))}</td><td>${esc(x.who || "–")}</td><td>${pill(label, tone)}</td><td>${esc(x.needs && x.needs !== "none stated" ? x.needs : "–")}</td><td>${esc(x.feedback && x.feedback !== "none" ? x.feedback : "–")}</td></tr>`; }).join("");
+  box.innerHTML = `<div class="panel-head"><h2>Phone feedback</h2><span class="small muted">what customers said on the AI's calls</span></div>
+    <div class="an-top" style="margin-bottom:14px">${tile("Calls made", c.made, "by the Voice agent")}
+      ${tile("Interested", n("goal_reached") + n("interested"), "agreed or wants to know more")}${tile("Call back later", n("callback"), "asked to be called again")}
+      ${tile("Not interested", n("not_interested") + n("no_answer"), c.reply_s ? `the agent replies in about ${c.reply_s} s` : "or did not answer")}</div>
+    <div class="scroll-x"><table><thead><tr><th>When</th><th>Customer</th><th>Result</th><th>What they need</th><th>Feedback</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 loaders.analytics = async () => {
   $("#page-analytics").classList.add("loading");  // refetch keeps the frame
   try {
     const r = await api(`/v1/analytics?days=${state.anDays}`);
     state.anLast = r;
-    renderMoney(r); renderVentures(r); renderTiles(r); renderTrend(r); renderProducts(r);
+    renderMoney(r); renderVentures(r); renderTiles(r); renderTrend(r); renderProducts(r); renderCalls(r);
   } finally { $("#page-analytics").classList.remove("loading"); }
 };
 $("#anPeriod").addEventListener("click", (e) => {
@@ -2050,6 +2149,7 @@ function fieldHtml(f) {
   const id = `f-${f.path.replaceAll(".", "-")}`, v = f.value;
   const help = f.help ? `<div class="help">${esc(f.help)}</div>` : "";
   const attrs = `id="${id}" data-path="${f.path}" data-type="${f.type}"`;
+  if (f.type === "onoff") return `<div class="rule"><label class="switch" for="${id}"><span>${esc(f.label)}</span><input type="checkbox" ${attrs} ${v === "on" ? "checked" : ""}></label>${help}</div>`;
   if (f.type === "bool") return `<div class="rule"><label class="switch" for="${id}"><span>${esc(f.label)}</span><input type="checkbox" ${attrs} ${v ? "checked" : ""}></label>${help}</div>`;
   let input;
   if (f.type === "int" || f.type === "number") input = `<input type="number" ${attrs} value="${esc(v ?? "")}" ${f.min != null ? `min="${f.min}"` : ""} ${f.max != null ? `max="${f.max}"` : ""} step="${f.type === "int" ? 1 : "any"}">`;
@@ -2067,6 +2167,7 @@ function fieldHtml(f) {
 function readField(el) {
   const t = el.dataset.type;
   if (t === "bool") return el.checked;
+  if (t === "onoff") return el.checked ? "on" : "off";
   if (t === "multi") return $$("input:checked", el).map((i) => i.value);
   if (t === "hours") return $$("select", el).map((s) => Number(s.value));
   if (t === "select") { const raw = el.value; return /^\d+$/.test(raw) ? Number(raw) : raw; }
@@ -2086,8 +2187,8 @@ function renderAgentDetail(animate = true) {
       <div class="grow"><h2>${esc(a.name)}</h2><div class="small muted">${esc(a.layer)}</div></div>${control}</div>
     <p class="small" style="margin:0">${esc(a.job)}</p>
     ${a.locked_reason ? `<div class="locked"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>${esc(a.locked_reason)}</span></div>` : ""}
-    ${stats.length ? `<div><div class="eyebrow" style="margin-bottom:8px">Last 30 days</div><div class="stats">${stats.map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div></div>` : ""}
-    ${a.fields.length ? `<form class="rules" id="rulesForm"><div class="eyebrow">Rules</div>${a.fields.map(fieldHtml).join("")}
+    ${stats.length && a.key !== "voice" ? `<div><div class="eyebrow" style="margin-bottom:8px">Last 30 days</div><div class="stats">${stats.map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div></div>` : ""}
+    ${a.key === "voice" ? voiceLayout(a) : a.fields.length ? `<form class="rules" id="rulesForm"><div class="eyebrow">Rules</div>${a.fields.map(fieldHtml).join("")}
       <div class="detail-actions"><button class="btn human" type="submit" id="rulesSave" disabled>Save changes</button><button class="btn ghost" type="button" id="rulesReset" disabled>Undo changes</button><span class="small muted" id="rulesNote"></span></div></form>`
       : `<div class="empty">${a.status === "planned" ? "This agent arrives in a later phase." : "No settings to change."}</div>`}`;
   if (animate) { box.removeAttribute("data-anim"); void box.offsetWidth; box.setAttribute("data-anim", ""); }
@@ -2105,6 +2206,7 @@ function renderAgentDetail(animate = true) {
       toast(`Saved. ${shortName(a)} follows the new rules from now.`);
     }); });
   }
+  if (a.key === "voice") loadVoice();
   $("#agentOn")?.addEventListener("change", async (e) => {
     const sw = e.target; sw.disabled = true;
     try {
@@ -2113,6 +2215,262 @@ function renderAgentDetail(animate = true) {
       toast(r.status === "on" ? `${shortName(a)} is running.` : `${shortName(a)} is switched off.`);
     } catch (err) { sw.checked = !sw.checked; sw.disabled = false; toast(err.message, true); }
   });
+}
+// Voice agent: a practice call that behaves like a real one, the call script, the phone line and the call history.
+const OUTCOME = { goal_reached: ["Goal reached", "good"], interested: ["Interested", "good"], callback: ["Call back", "human"], not_interested: ["Not interested", ""], no_answer: ["No answer", ""], voicemail: ["Voicemail", ""], no_response: ["No response", ""], unclear: ["Unclear", ""] };
+const VOICE_SPEECH_RMS = 0.02;   // calibration knob: raise if room noise keeps it listening, lower if quiet voices are missed
+const VOICE_PAUSE_MS = 1200;     // this much silence after speaking ends the person's turn, and it is sent
+const VOICE_WAIT_MS = 10000;     // nobody spoke for this long: stop listening until the microphone is tapped
+const VOICE_TABS = [["try", "Try a call"], ["script", "Call script"], ["line", "Phone calls"], ["history", "History"]];
+const VOICE_SAY = { idle: "Ready for a practice call", connecting: "Connecting…", speaking: "is speaking", listening: "Listening. Just talk.", thinking: "Thinking…", paused: "Tap the microphone to talk", typing: "Type your reply", ended: "Call ended" };
+const ICON_MIC = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`;
+const ICON_END = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5c5-4.7 13-4.7 18 0l-2.4 2.6-3.4-1.7v-2.5a11 11 0 0 0-6.4 0v2.5l-3.4 1.7z"/></svg>`;
+const voice = { tab: "try", history: [], state: "idle", live: false, summary: null, st: {}, pl: {} };
+function voiceSummary(s) {
+  const [label, tone] = OUTCOME[s.outcome] || [s.outcome || "Unclear", ""];
+  const answers = Object.entries(s.answers || {}).map(([q, a]) => `<dt>${esc(q)}</dt><dd>${esc(a)}</dd>`).join("");
+  return `<div class="small" style="margin-top:8px">${pill(label, tone)} <b>Needs:</b> ${esc(s.needs || "none stated")}
+    <dl class="facts-list" style="margin:8px 0">${answers}</dl><div class="muted">Next step: ${esc(s.next_step || "–")}</div></div>`;
+}
+function voiceLayout(a) {
+  const f = (p, over = {}) => { const x = a.fields.find((y) => y.path === `voice.${p}`); return x ? fieldHtml({ ...x, ...over }) : ""; };
+  const q = a.fields.find((y) => y.path === "voice.questions");
+  return `<div class="vtop"><div class="seg" role="tablist" aria-label="Voice agent" id="vTabs">${VOICE_TABS.map(([k, n]) => `<button type="button" role="tab" data-vtab="${k}">${n}</button>`).join("")}</div>
+      <button class="btn ghost sm" type="button" id="vResults">See call results in Analytics</button></div>
+    <section data-vpanel="try" id="vTry"></section>
+    <form class="rules" id="rulesForm">
+      <div class="vpanel" data-vpanel="script">
+        <fieldset class="vgroup"><legend class="eyebrow">Who is calling</legend><div class="vgrid">${f("agent_name")}${f("company_short")}${f("tone")}${f("language")}</div></fieldset>
+        <fieldset class="vgroup"><legend class="eyebrow">What the call is about</legend>${f("main_idea")}${f("goal")}
+          <div class="rule"><label id="vQLabel">Questions to ask</label><textarea hidden id="f-voice-questions" data-path="voice.questions" data-type="textarea">${esc(q?.value ?? "")}</textarea>
+            <ol class="vqs" id="vQs" aria-labelledby="vQLabel"></ol><button class="btn sm" type="button" id="vQAdd">Add a question</button>
+            <div class="help">Asked in this order, one at a time. Anything the customer already answered is skipped.</div></div></fieldset>
+      </div>
+      <div class="vpanel" data-vpanel="line">
+        <div id="vDial"></div>
+        <div class="vpanel" id="vLineFields">
+          <fieldset class="vgroup"><legend class="eyebrow">Call limits</legend><div class="vgrid">${f("max_call_min", { type: "number", min: 0.5, max: 30, help: "The call is closed politely just before this." })}${f("minutes_budget", { type: "int", min: 0, help: "Calls stop when there is no room for another one." })}</div></fieldset>
+          <fieldset class="vgroup"><legend class="eyebrow">Automatic calling</legend>${f("auto_call", { type: "onoff", label: "Call my contact list automatically", help: "One customer at a time, only people who gave consent." })}
+            <div class="vgrid three">${f("call_from", { type: "time", help: "" })}${f("call_until", { type: "time", help: "" })}${f("gap_min", { type: "int", min: 1, help: "" })}</div>
+            <div class="help">Calls only go out between 09:00 and 21:00, whatever is set here.</div></fieldset>
+        </div>
+      </div>
+      <div class="detail-actions" id="vSaveBar"><button class="btn human" type="submit" id="rulesSave" disabled>Save changes</button><button class="btn ghost" type="button" id="rulesReset" disabled>Undo changes</button><span class="small muted" id="rulesNote"></span></div>
+    </form>
+    <section data-vpanel="history"><div id="voiceCalls" class="small muted">Loading…</div></section>`;
+}
+function showVoiceTab(k) {
+  voice.tab = k;
+  $$("[data-vtab]").forEach((b) => { b.setAttribute("aria-pressed", String(b.dataset.vtab === k)); b.setAttribute("aria-selected", String(b.dataset.vtab === k)); });
+  $$("[data-vpanel]").forEach((p) => { p.hidden = p.dataset.vpanel !== k; });
+  $("#rulesForm").hidden = k === "try" || k === "history";
+  $("#vSaveBar").hidden = k === "line" && voice.pl.trial;
+  if (k === "history") loadVoiceCalls();
+}
+function bindQuestions() {
+  const ta = $("#f-voice-questions"), box = $("#vQs");
+  const sync = () => { ta.value = $$("textarea", box).map((i) => i.value.trim()).filter(Boolean).join("\n"); ta.dispatchEvent(new Event("input", { bubbles: true })); };
+  const add = (v = "") => {
+    const li = document.createElement("li");
+    li.innerHTML = `<textarea rows="1" aria-label="Question" placeholder="Type a question"></textarea><button class="btn ghost sm" type="button" aria-label="Remove this question">Remove</button>`;
+    const input = $("textarea", li), fit = () => { input.style.height = "auto"; input.style.height = input.scrollHeight + 2 + "px"; };   // long questions stay fully readable
+    input.value = v; input.oninput = () => { fit(); sync(); };
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); add(); $("li:last-child textarea", box).focus(); } };
+    $("button", li).onclick = () => { li.remove(); sync(); };
+    box.append(li); requestAnimationFrame(fit);
+  };
+  ta.value.split("\n").filter((x) => x.trim()).forEach((x) => add(x));
+  $("#vQAdd").onclick = () => { add(); $("li:last-child textarea", box).focus(); };
+}
+function voiceName() { return $("#f-voice-agent_name")?.value.trim() || "Asha"; }
+function setVoice(state) {
+  voice.state = state;
+  const stage = $("#vStage"); if (!stage) return;
+  stage.dataset.state = state;
+  $("#vStatus").textContent = state === "speaking" ? `${voiceName()} ${VOICE_SAY.speaking}` : VOICE_SAY[state];
+  const mic = $("#vMic");
+  if (mic) { mic.disabled = state === "thinking" || state === "connecting" || (!voice.stream && state !== "speaking"); mic.setAttribute("aria-label", state === "listening" ? "Finish talking and send" : state === "speaking" ? "Interrupt and talk" : "Talk"); }
+  renderVoiceChat();
+}
+function renderVoiceChat() {
+  const box = $("#voiceChat"); if (!box) return;
+  box.innerHTML = voice.history.map((m) => `<div class="bubble ${m.role === "assistant" ? "in" : "out"}">${esc(m.content)}</div>`).join("")
+    + (voice.state === "thinking" || voice.state === "connecting" ? `<div class="bubble in vdots" aria-hidden="true"><i></i><i></i><i></i></div>` : "")
+    || `<div class="vhint"><b>You play the customer.</b><span>Start the call and talk naturally. When you stop talking, your words are sent and ${esc(voiceName())} answers out loud.</span></div>`;
+  box.scrollTop = box.scrollHeight;
+}
+function renderVoiceControls() {
+  const box = $("#vControls"); if (!box) return;
+  const off = !voice.st.running || !voice.st.ai_ready;
+  box.innerHTML = voice.live ? `<button class="vbtn mic" type="button" id="vMic">${ICON_MIC}</button><button class="vbtn end" type="button" id="vEnd" aria-label="End the call">${ICON_END}</button>`
+    : `<label class="vbiz" for="voiceBiz">Pretend you run<input id="voiceBiz" placeholder="a paint shop (optional)" autocomplete="off" value="${esc(voice.business || "")}"></label>
+       <button class="btn human" type="button" id="voiceStart" ${off ? "disabled" : ""}>${voice.state === "ended" ? "Start another call" : "Start practice call"}</button>
+       ${off ? `<span class="small">Practice calls aren't available right now.</span>` : ""}`;
+  $("#voiceStart")?.addEventListener("click", voiceStart);
+  $("#vEnd")?.addEventListener("click", voiceEnd);
+  $("#vMic")?.addEventListener("click", () => {
+    if (voice.state === "listening") voice.stopNow?.();
+    else if (voice.state === "speaking") voiceAudio?.pause();
+    else voiceListen();
+  });
+  const say = $("#vType"); if (say) say.hidden = !voice.live;
+}
+function renderVoiceMeter() {
+  const box = $("#vMeter"); if (!box) return;
+  const { minutes_used: used = 0, minutes_budget: all = 0 } = voice.st;
+  box.hidden = !voice.pl.trial;
+  if (box.hidden) return;
+  const left = Math.max(all - used, 0);
+  box.innerHTML = `<div class="vbar" role="img" aria-label="${left} of ${all} free test call minutes left"><i style="width:${all ? left / all * 100 : 0}%"></i></div><span class="small muted">${left} of ${all} free test call minutes left</span>`;
+}
+function renderVoiceTry() {
+  $("#vTry").innerHTML = `<div class="vcall" id="vStage" data-state="${voice.state}">
+      <div class="vphone"><div class="vorb"><span class="vinit">${esc(voiceName().slice(0, 1).toUpperCase())}</span></div>
+        <div class="vwho"><b>${esc(voiceName())}</b><span id="vStatus" aria-live="polite"></span><span class="vclock" id="vClock">0:00</span></div>
+        <div class="vcontrols" id="vControls"></div></div>
+      <div class="vlog"><div class="vchat" id="voiceChat"></div>
+        <form class="vtype" id="vType" hidden><input id="voiceSay" placeholder="Or type a reply" aria-label="Type a reply" autocomplete="off"><button class="btn sm" type="submit">Send</button></form></div>
+    </div><div class="vmeter" id="vMeter" hidden></div><div id="voiceSum"></div>`;
+  renderVoiceControls(); setVoice(voice.state); renderVoiceMeter();
+  $("#vType").onsubmit = (e) => { e.preventDefault();
+    const v = $("#voiceSay").value.trim();
+    if (!v || !voice.live || voice.state === "thinking" || voice.state === "connecting") return;
+    $("#voiceSay").value = ""; voiceDropListening(); voice.skipListen = voice.state === "speaking"; voiceAudio?.pause();
+    voice.history.push({ role: "user", content: v }); voiceTurn(); };
+}
+let voiceAudio;
+async function speakReply(text) {   // plays the reply in the real call voice and waits for it to finish; the text stays on screen if audio fails
+  try {
+    const res = await fetch("/v1/voice/say", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || "the voice isn't available");
+    voiceAudio?.pause(); voiceAudio = new Audio(URL.createObjectURL(await res.blob()));
+    await new Promise((done) => { voiceAudio.onended = voiceAudio.onpause = voiceAudio.onerror = done; voiceAudio.play().catch(done); });
+  } catch (e) { toast("Couldn't play the voice: " + e.message, true); }
+}
+function voiceDropListening() { if (voice.rec) { voice.dropRec = true; voice.rec.stop(); } }
+function voiceStop() {   // ends everything the call holds: microphone, sound, timers
+  voice.live = false; voiceDropListening(); clearInterval(voice.clock); clearInterval(voice.poll);
+  voice.stream?.getTracks().forEach((t) => t.stop()); voice.stream = null;
+  voice.ctx?.close().catch(() => {}); voice.ctx = null; voiceAudio?.pause();
+}
+async function voiceFinish() {
+  voiceStop(); voice.state = "ended"; renderVoiceControls(); setVoice("ended");
+  if (voice.summary) $("#voiceSum").innerHTML = `<div class="vsum"><div class="eyebrow">What this call found out</div>${voiceSummary(voice.summary)}</div>`;
+  voice.st = await api("/v1/voice/status").catch(() => voice.st); renderVoiceMeter();
+}
+async function voiceTurn(end = false) {
+  if (!end) setVoice(voice.history.length ? "thinking" : "connecting");
+  let r;
+  try { r = await api("/v1/voice/chat", { method: "POST", body: { history: voice.history, end, business: voice.business || "" } }); }
+  catch (e) { voiceStop(); voice.state = "idle"; renderVoiceControls(); setVoice("idle"); if (e.status !== 402) toast(e.message, true); return; }
+  if (r.summary) voice.summary = r.summary;
+  if (end) return;
+  if (!voice.live) return;
+  if (r.reply) voice.history.push({ role: "assistant", content: r.reply });
+  if (r.reply) { setVoice("speaking"); await speakReply(r.reply); }
+  if (!voice.live || voice.ending) return;
+  if (r.done) return voiceFinish();
+  if (voice.skipListen) { voice.skipListen = false; return; }
+  voice.stream ? voiceListen() : setVoice("typing");
+}
+function voiceListen() {
+  if (!voice.live || !voice.stream || voice.rec) return;
+  const chunks = [], rec = new MediaRecorder(voice.stream), began = performance.now(), buf = new Uint8Array(voice.an.fftSize);
+  let spoke = false, quiet = began;
+  voice.rec = rec;
+  voice.stopNow = () => { spoke = true; if (rec.state === "recording") rec.stop(); };
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.onstop = async () => {
+    clearInterval(voice.poll); voice.rec = null; $("#vStage")?.style.setProperty("--lvl", 0);
+    if (voice.dropRec || !voice.live) { voice.dropRec = false; return; }
+    if (!spoke) return setVoice("paused");
+    setVoice("thinking");
+    try {
+      const res = await fetch("/v1/voice/hear", { method: "POST", body: new Blob(chunks) }), r = await res.json();
+      if (!res.ok) throw new Error(typeof r.detail === "string" ? r.detail : "please try again");
+      if (!voice.live) return;
+      if (!r.text) { toast("Didn't catch that. Please say it again."); return voiceListen(); }
+      voice.history.push({ role: "user", content: r.text });   // sent straight away, like speaking on a real call
+      await voiceTurn();
+    } catch (e) { toast("Couldn't hear that: " + e.message, true); if (voice.live) setVoice("paused"); }
+  };
+  rec.start(); setVoice("listening");
+  voice.poll = setInterval(() => {
+    if (rec.state !== "recording") return;
+    voice.an.getByteTimeDomainData(buf);
+    const rms = Math.sqrt(buf.reduce((n, b) => n + ((b - 128) / 128) ** 2, 0) / buf.length), now = performance.now();
+    $("#vStage")?.style.setProperty("--lvl", Math.min(rms * 6, 1).toFixed(2));
+    if (rms > VOICE_SPEECH_RMS) { spoke = true; quiet = now; }
+    if ((spoke && now - quiet > VOICE_PAUSE_MS) || (!spoke && now - began > VOICE_WAIT_MS) || now - began > 30000) rec.stop();
+  }, 80);
+}
+async function voiceStart() {
+  if (!$("#rulesSave").disabled) { showVoiceTab("script"); return toast("Save your script changes first, then start the call.", true); }
+  voice.business = $("#voiceBiz")?.value.trim() || "";
+  Object.assign(voice, { history: [], summary: null, ending: false, skipListen: false, live: true });
+  $("#voiceSum").innerHTML = "";
+  try {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error();
+    voice.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    voice.ctx = new AudioContext(); voice.an = voice.ctx.createAnalyser(); voice.an.fftSize = 1024;
+    voice.ctx.createMediaStreamSource(voice.stream).connect(voice.an);
+  } catch { voice.stream = null; toast("The microphone is off, so type your replies instead. You can allow it from the icon in the address bar."); }
+  const t0 = Date.now();
+  voice.clock = setInterval(() => {
+    if (!$("#vStage")?.offsetParent) return voiceStop();   // the person left this view: never keep the microphone open
+    const s = Math.floor((Date.now() - t0) / 1000); $("#vClock").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }, 1000);
+  $("#vClock").textContent = "0:00";
+  renderVoiceControls();
+  await voiceTurn();
+}
+async function voiceEnd() {
+  if (voice.ending) return;
+  voice.ending = true; voiceDropListening(); voiceAudio?.pause();
+  $("#vEnd").disabled = true; setVoice("thinking");
+  if (voice.history.some((m) => m.role === "user")) await voiceTurn(true);
+  if (voice.ending) voiceFinish();
+}
+function renderVoiceDial() {
+  const { st, pl } = voice, box = $("#vDial");
+  $("#vLineFields").hidden = !!pl.trial;
+  if (pl.trial) {
+    box.innerHTML = `<div class="vcontact"><div class="eyebrow">Real phone calls</div><h3>We connect the phone line for you</h3>
+      <p>Practice calls are free. When you want ${esc(voiceName())} to phone your customers, our team sets up a line for your business and helps you stay within calling rules.</p>
+      <div class="row"><a class="btn human" href="${esc(pl.contact_url)}" target="_blank" rel="noopener">Contact us</a><a class="btn" href="${esc(pl.demo_url)}" target="_blank" rel="noopener">Book a demo</a></div></div>`;
+    return;
+  }
+  const ready = st.running && st.phone_ready;
+  box.innerHTML = `<div class="vdial"><div class="row" style="justify-content:space-between"><b>Call a customer now</b>${pill(ready ? (st.busy ? "On a call" : "Line ready") : "Line not connected", ready ? "good" : "")}</div>
+      <div class="row"><input id="voiceTo" placeholder="98765 43210" aria-label="Customer's phone number" autocomplete="off" style="max-width:220px" ${ready ? "" : "disabled"}><button class="btn human" type="button" id="voiceCall" ${ready ? "" : "disabled"}>Call now</button></div>
+      <label class="vconsent"><input type="checkbox" id="voiceOk" ${ready ? "" : "disabled"}><span>This person agreed to receive calls and is not on a do-not-call list</span></label>
+      <div class="small muted">${st.minutes_budget ? `${st.minutes_used} of ${st.minutes_budget} phone minutes used. ` : ""}${ready ? "The agent says it is an AI assistant. One call at a time." : "The phone line isn't connected yet. Practice calls still work."}</div></div>`;
+  $("#voiceTo").onkeydown = (e) => { if (e.key === "Enter") e.preventDefault(); };
+  $("#voiceCall").onclick = (e) => busy(e.target, async () => {
+    const r = await api("/v1/voice/call", { method: "POST", body: { to: $("#voiceTo").value, agreed: $("#voiceOk").checked } });
+    toast(`Calling now. It opens with: “${r.greeting}”`);
+  });
+}
+async function loadVoiceCalls() {
+  const box = $("#voiceCalls"); if (!box) return;
+  try {
+    const calls = await api("/v1/voice/calls");
+    box.innerHTML = calls.length ? calls.map((c) => `<details class="vhist"><summary><span>${esc(c.at)}</span><b>${esc(c.who || "")}</b>${pill(...(OUTCOME[c.summary?.outcome] || ["Unclear", ""]))}<span class="muted">${esc(c.summary?.needs || "")}</span></summary>
+        ${voiceSummary(c.summary || {})}<div class="small" style="margin-top:6px">${(c.transcript || []).map((m) => `<div><b>${m.role === "assistant" ? "Agent" : "Customer"}:</b> ${esc(m.content)}</div>`).join("")}</div></details>`).join("")
+      : "No calls yet. Finished practice calls appear here.";
+  } catch { box.textContent = "Calls can't be shown right now."; }
+}
+async function loadVoice() {
+  if (!$("#vTry")) return;
+  voiceStop(); Object.assign(voice, { history: [], summary: null, state: "idle" });
+  bindQuestions();
+  $("#vTabs").onclick = (e) => { const b = e.target.closest("[data-vtab]"); if (b) showVoiceTab(b.dataset.vtab); };
+  $("#vResults").onclick = () => openPage("analytics");
+  showVoiceTab(voice.tab);
+  const [st, pl] = await Promise.all([api("/v1/voice/status"), planInfo || api("/v1/plan")]);
+  if (!$("#vTry")) return;
+  voice.st = st; voice.pl = pl;
+  renderVoiceTry(); renderVoiceDial(); $("#vSaveBar").hidden = voice.tab === "line" && pl.trial;
 }
 loaders.agents = async () => {
   if (!state.agents) $("#agentList").innerHTML = skeletons(8, 40);
@@ -2258,11 +2616,14 @@ function renderChannels(c) {
   $("#waPhoneId").value = wa.phone_id;
   $("#waToken").value = "";
   $("#waToken").placeholder = wa.has_token ? "Saved. Paste a new one to replace it" : "Paste the permanent token";
-  $("#waHelp").innerHTML = `Replies: in Meta, set the webhook to <span class="mono">${esc(wa.webhook)}</span>`
-    + (wa.missing_env.length ? ` and add ${wa.missing_env.map((k) => `<span class="mono">${k}</span>`).join(", ")} to .env.` : ".")
+  const free = planInfo?.trial;
+  ["#waPhoneId", "#waToken", "#waSave"].forEach((x) => { $(x).disabled = !!free; });
+  $("#testTo").value = free ? planInfo.own_email || "" : $("#testTo").value; $("#testTo").readOnly = !!free;
+  $("label[for=testTo]").textContent = free ? "Send a test to your own email" : "Send a test to your own number or email";
+  $("#waHelp").innerHTML = free ? "On the free plan nothing goes out to customers. Contact us to connect WhatsApp." : `Replies: in Meta, set the webhook to <span class="mono">${esc(wa.webhook)}</span>. Contact us for the verify token.`
     + " After 24 hours without a reply, WhatsApp only allows approved templates: set them in Agents → Distribution.";
   $("#mailHelp").innerHTML = mail.ready ? `Sending from <span class="mono">${esc(mail.from)}</span>.`
-    : `Missing: ${mail.missing_env.map((k) => `<span class="mono">${k}</span>`).join(", ")}.`;
+    : "Email isn't switched on yet. Contact us and we'll set it up.";
 }
 function renderAi(a) {
   $("#aiState").innerHTML = a.has_key ? pill(`Your key ${a.hint}`, "good") : pill("Free AI", "agent");
@@ -2391,10 +2752,12 @@ function setMode(mode) {
 }
 $$(".auth-tabs button").forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
 const finishLogin = () => location.reload();  // a fresh page: nothing from an earlier session stays in memory or on screen
-function askCode(email) {
+function askCode(email, reset = false) {
   $("#loginForm").hidden = true; $(".auth-tabs").hidden = true; $("#googleBtn").hidden = true; $("#authOr").hidden = true;
   $("#otpForm").hidden = false; $("#otpError").hidden = true; $("#otpCode").value = "";
-  $("#authTitle").textContent = "Check your email"; $("#authSub").textContent = `We sent a 6-digit code to ${email}.`;
+  $("#otpNew").hidden = !reset; $("#otpPass").value = "";
+  $("#authTitle").textContent = reset ? "Choose a new password" : "Check your email";
+  $("#authSub").textContent = reset ? `If ${email} has an account, a 6-digit code is on its way.` : `We sent a 6-digit code to ${email}.`;
   $("#otpCode").focus();
 }
 function backToForm() {
@@ -2407,9 +2770,7 @@ $("#forgotBtn").onclick = () => {
   const email = $("#loginEmail").value.trim();
   if (!email) { showErr("#loginError", "Enter your email above, then click Forgot your password."); $("#loginEmail").focus(); return; }
   busy($("#forgotBtn"), async () => {
-    try { await api("/v1/auth/forgot", { method: "POST", body: { email } }); } catch (err) { showErr("#loginError", err.message); return; }
-    $("#loginError").hidden = true; $("#loginOk").textContent = `We emailed a new password to ${email}. Sign in with it, then change it from your profile menu.`; $("#loginOk").hidden = false;
-    $("#loginPass").value = ""; $("#loginPass").focus();
+    try { const r = await api("/v1/auth/forgot", { method: "POST", body: { email } }); pending = ["/v1/auth/forgot", { email }]; askCode(r.email, true); } catch (err) { showErr("#loginError", err.message); }
   });
 };
 $("#googleBtn").onclick = () => { location.href = "/v1/auth/google"; };
@@ -2429,8 +2790,10 @@ $("#otpForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const code = $("#otpCode").value.trim(), email = pending[1].email;
   if (!/^\d{6}$/.test(code)) { showErr("#otpError", "Enter the 6-digit code."); return; }
+  const new_password = $("#otpPass").value;
+  if (!$("#otpNew").hidden && new_password.length < 8) { showErr("#otpError", "Choose a password of at least 8 characters."); return; }
   busy($("#otpBtn"), async () => {
-    try { await api("/v1/auth/verify", { method: "POST", body: { email, code } }); } catch (err) { showErr("#otpError", err.message); return; }
+    try { await api("/v1/auth/verify", { method: "POST", body: { email, code, new_password } }); } catch (err) { showErr("#otpError", err.message); return; }
     finishLogin();
   });
 });

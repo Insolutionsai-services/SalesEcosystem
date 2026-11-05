@@ -43,7 +43,7 @@ def remind_due(s, tenant: Tenant, at: datetime) -> int:
         if not row["next_reminder"] or datetime.fromisoformat(row["next_reminder"]) > at:
             continue
         contact = s.get(Contact, row["contact_id"])
-        if contact.opted_out:
+        if contact.opted_out or channels.email_cap(s, tenant, contact):
             continue
         text = (f"Hi {contact.name or 'there'}, a gentle reminder from {tenant.name}: {cur} {row['balance']:,.0f} is still pending "
                 f"for order #{row['quote_id']} (total {cur} {row['total']:,.0f}, paid {cur} {row['paid']:,.0f}). "

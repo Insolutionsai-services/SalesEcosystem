@@ -126,17 +126,47 @@ def test_demo_account_skips_the_code(client, mail):
     assert login(client, "sales@demo.in", "owner-pass-1").json()["email"] == "sales@demo.in" and "sales@demo.in" not in mail
 
 
-def test_forgot_password_emails_a_new_one(client, mail, monkeypatch):
-    from salescore.services import otp
-    sent = {}
-    monkeypatch.setattr(otp, "mail", lambda to, subject, text: sent.__setitem__(to, text))
+def test_forgot_password_needs_the_code_and_tells_nobody_who_has_an_account(client, mail):
     company(client, "Acme Paints", "boss@acme.in")
-    r = client.post("/v1/auth/forgot", json={"email": "nobody@acme.in"})
-    assert r.status_code == 422 and "create your account" in r.json()["detail"]
-    assert client.post("/v1/auth/forgot", json={"email": "boss@acme.in"}).json() == {"sent": "boss@acme.in"}
-    new = sent["boss@acme.in"].split("password is: ")[1].split()[0]
-    assert login(client, "boss@acme.in", "owner-pass-1").status_code != 200  # old one no longer works
-    assert login(client, "boss@acme.in", new).status_code == 200
+    unknown = client.post("/v1/auth/forgot", json={"email": "nobody@acme.in"})
+    assert unknown.status_code == 200 and "nobody@acme.in" not in mail and set(unknown.json()) == {"otp", "email"}
+    assert client.post("/v1/auth/forgot", json={"email": "boss@acme.in"}).status_code == 200
+    assert login(client, "boss@acme.in", "owner-pass-1").status_code == 200   # a stranger typing the address changes nothing
+    code = mail["boss@acme.in"]
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": code}).status_code == 422                               # no new password
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": code, "new_password": "short"}).status_code == 422      # too short
+    assert client.post("/v1/auth/verify", json={"email": "boss@acme.in", "code": code, "new_password": "brand-new-pass"}).status_code == 200
+    assert login(client, "boss@acme.in", "owner-pass-1").status_code != 200
+    assert login(client, "boss@acme.in", "brand-new-pass").status_code == 200
+
+
+def test_asking_twice_looks_the_same_for_real_and_unknown_addresses(client, mail, monkeypatch):
+    from salescore.services import otp
+    monkeypatch.setattr(otp, "COOLDOWN_S", 30)
+    company(client, "Acme Paints", "boss@acme.in")
+    answers = [client.post("/v1/auth/forgot", json={"email": e}).status_code for e in ("boss@acme.in", "boss@acme.in", "ghost@acme.in", "ghost@acme.in")]
+    assert answers == [200, 200, 200, 200]
+
+
+def test_sign_up_codes_are_limited_overall_not_just_per_address(client, mail):
+    from salescore.services import otp
+    otp._recent.clear()
+    codes = [client.post("/v1/auth/signup", json={"email": f"x{i}@acme.in", "password": "owner-pass-1"}).status_code for i in range(21)]
+    otp._recent.clear()
+    assert codes == [200] * 20 + [422] and len(mail) == 20
+
+
+def test_oversized_input_is_refused_cleanly(client, mail):
+    assert client.post("/v1/auth/signup", json={"email": "a@b.in", "password": "x" * 9, "company": "c" * 201}).status_code == 422
+    h = {"X-API-Key": company(client, "Acme Paints", "boss@acme.in")}
+    assert client.post("/v1/voice/hear", content=b"x" * (13 * 1024 * 1024), headers=h).status_code == 413
+    assert client.post("/v1/auth/login", content=b"x" * (13 * 1024 * 1024), headers={"Content-Type": "application/json"}).status_code == 413
+
+
+def test_a_chunked_upload_cannot_skip_the_size_limit(client, mail):
+    h = {"X-API-Key": company(client, "Acme Paints", "boss@acme.in")}
+    chunks = (b"x" * (1024 * 1024) for _ in range(13))                                # no Content-Length header at all
+    assert client.post("/v1/voice/hear", content=chunks, headers=h).status_code == 413
 
 
 def test_session_idles_out_and_has_a_hard_limit(client, s, monkeypatch):
