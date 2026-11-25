@@ -1,4 +1,6 @@
 """Periodic run per tenant: expire quotes, due outreach, the marketing chain, and (daily) training + analytics."""
+import logging
+
 from ..ai import agent, llm
 from ..analytics.metrics import analyse
 from ..analytics.training import train_tenant
@@ -52,7 +54,8 @@ def tick(s, tenant: Tenant, daily: bool = False) -> dict:
         try:
             summary = agent.run(s, tenant, "insights", to_json(metrics))
         except (llm.LLMUnavailable, plan.PlanLimit) as e:  # metrics, scores and training above still count
-            summary = f"AI insights unavailable: {e}"
+            logging.getLogger("salescore.scheduler").warning("insights skipped: %s", e)
+            summary = "LLM is unavailable, so today's notes could not be written."
         log_activity(s, tenant.id, None, "insights", body=summary, metrics=metrics)
         result |= {"metrics": metrics, "insights": summary}
     return result

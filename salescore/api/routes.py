@@ -16,7 +16,7 @@ from ..analytics.team import feed, roster
 from ..analytics.training import train_tenant
 from ..core import agents as agent_config
 from ..core.config import PUBLIC_BASE_URL
-from ..core.models import Activity, Campaign, Contact, Quote, Task, Tenant, User
+from ..core.models import Activity, Campaign, Client, Contact, Quote, Task, Tenant, User
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone, now
 from ..marketing import attribution, audience, distribution, orchestrator, poster, strategy
@@ -249,6 +249,16 @@ def list_tasks(kind: str | None = None, status: str = "open", t: Tenant = Depend
     return [schemas.task_out(x) for x in tasks.list_tasks(s, t.id, status, kind)]
 
 
+@router.post("/tasks/{task_id}/seen")
+def task_seen(task_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Opening a hand-off's conversation takes it off the queue. Other kinds need a decision, so they stay."""
+    with transaction(s):
+        task = owned(s, Task, task_id, t)
+        if task.kind == "handoff" and task.status == "open":
+            task.status = "done"
+    return {"status": task.status}
+
+
 @router.post("/approvals/{task_id}")
 def approve(task_id: int, body: schemas.Decision, t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in),
             s=Depends(db)):
@@ -366,6 +376,21 @@ def _estates(t: Tenant) -> Tenant:
     return t
 
 
+@router.post("/realestate/clients", dependencies=[Depends(manager)])
+def add_estate_client(body: schemas.NewClient, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    with transaction(s):
+        client = realestate.add_client(s, _estates(t), **body.model_dump())
+    return {"id": client.id, "name": client.name}
+
+
+@router.delete("/realestate/clients/{client_id}", dependencies=[Depends(manager)])
+def delete_estate_client(client_id: int, t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Removes the broker only: their leads, sales and payments stay and show under direct leads."""
+    with transaction(s):
+        s.delete(owned(s, Client, client_id, _estates(t)))
+    return {"deleted": client_id}
+
+
 @router.get("/realestate/plots")
 def estate_plots(t: Tenant = Depends(tenant_of), s=Depends(db)):
     """The blueprint: every venture with its plots, their status and who bought or booked them."""
@@ -374,9 +399,8 @@ def estate_plots(t: Tenant = Depends(tenant_of), s=Depends(db)):
 
 @router.get("/realestate/suggestions")
 def estate_suggestions(t: Tenant = Depends(tenant_of), s=Depends(db)):
-    """AI suggestions: alerts with their formulas, what leads asked for against the plots left, and how each kind of plot sells."""
-    at = now()
-    return {"alerts": estate_ai.alerts(s, _estates(t), at), "demand": estate_ai.demand(s, t), "market": estate_ai.market(s, t, at)}
+    """AI suggestions: what to buy, what to charge, payments to collect and leads to call back, each with its formula."""
+    return estate_ai.suggestions(s, _estates(t), now())
 
 
 @router.get("/realestate/clients")

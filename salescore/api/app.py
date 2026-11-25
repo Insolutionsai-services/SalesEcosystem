@@ -1,4 +1,5 @@
 """ASGI entry point: `uvicorn salescore.api.app:app`. Serves the API and the single-page UI at /."""
+import logging
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -110,4 +111,5 @@ async def plan_limit(request: Request, exc: PlanLimit):
 
 @app.exception_handler(LLMUnavailable)
 async def llm_unavailable(request: Request, exc: LLMUnavailable):
-    return JSONResponse(status_code=502, content={"detail": f"LLM unavailable: {exc}"})
+    logging.getLogger("salescore.api").warning("LLM unavailable: %s", exc)
+    return JSONResponse(status_code=502, content={"detail": "LLM is unavailable. Please try again later."})

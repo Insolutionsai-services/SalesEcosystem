@@ -78,6 +78,19 @@ def _totals(leads: list[dict]) -> dict:
             "due": round(sum(x["due"] for x in leads), 2), "list": leads}
 
 
+def add_client(s, tenant: Tenant, name: str, phone: str | None = None, city: str | None = None, commission_pct: float = 0) -> Client:
+    name = name.strip()
+    if not name:
+        raise ValueError("client name is needed")
+    if any(n.casefold() == name.casefold() for n in s.scalars(select(Client.name).where(Client.tenant_id == tenant.id))):
+        raise ValueError(f"a client named {name} already exists")  # leads are linked to their client by name
+    client = Client(tenant_id=tenant.id, name=name, phone=(phone or "").strip() or None, city=(city or "").strip() or None,
+                    commission_pct=commission_pct)
+    s.add(client)
+    s.flush()
+    return client
+
+
 def clients(s, tenant: Tenant) -> dict:
     """Clients (the brokers who bring leads), each with their leads' purchases, commission and a score; our own leads are listed apart."""
     by_client = defaultdict(list)

@@ -35,6 +35,10 @@ _down: dict[str, float] = {}  # model -> skip until (monotonic); gone models (40
 _client = httpx.Client()  # one connection pool: no new TLS handshake per call
 
 
+# What people see; the provider's own error text only goes to the server log
+UNAVAILABLE_NOTE = "LLM is unavailable. Please answer this message."
+
+
 class LLMUnavailable(RuntimeError):
     """The configured LLM can't be reached or isn't configured."""
 
