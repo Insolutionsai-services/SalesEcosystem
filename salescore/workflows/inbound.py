@@ -1,4 +1,6 @@
 """Inbound: a customer messages us on any channel -> AI reply (or a human, after hand-off)."""
+import logging
+
 from ..ai import agent, fastpath, llm
 from ..analytics.metrics import score_contact
 from ..core import agents
@@ -11,6 +13,8 @@ from ..services.plan import PlanLimit
 from ..services.tasks import close_open_tasks, has_open_task
 from . import photo_order
 from .followups import schedule_followup
+
+log = logging.getLogger("salescore.inbound")
 
 
 def handle_inbound(s, tenant: Tenant, text: str, phone=None, email=None, name=None, channel=None,
@@ -61,7 +65,9 @@ def answer(s, tenant: Tenant, contact: Contact, text: str) -> tuple[str, str]:
     try:
         reply = agent.run(s, tenant, "reply", text, contact)
     except (llm.LLMUnavailable, PlanLimit) as e:  # provider down, no key, or trial cap: a human picks it up
-        contacts.handoff(s, tenant, contact, f"AI unavailable: {e}", pause_bot=False)
+        log.warning("reply for contact %s handed to a person: %s", contact.id, e)
+        reason = f"Plan limit reached: {e}" if isinstance(e, PlanLimit) else llm.UNAVAILABLE_NOTE
+        contacts.handoff(s, tenant, contact, reason, pause_bot=False)
         return setting(tenant, "handoff_reply"), "fallback"
     if not reply:  # model gave nothing usable: never leave the customer hanging
         contacts.handoff(s, tenant, contact, "assistant could not answer")

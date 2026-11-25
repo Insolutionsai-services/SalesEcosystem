@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from ..ai.llm import UNAVAILABLE_NOTE
 from ..core.models import Activity, Campaign, Contact, Quote, Task, User
 
 
@@ -14,6 +15,13 @@ class NewTenant(BaseModel):
     owner_email: str | None = None     # first admin who signs in to the UI
     owner_name: str = ""
     owner_password: str | None = None
+
+
+class NewClient(BaseModel):
+    name: str = Field(max_length=200)
+    phone: str | None = Field(None, max_length=32)
+    city: str | None = Field(None, max_length=100)
+    commission_pct: float = Field(0, ge=0, le=100)
 
 
 class Payment(BaseModel):
@@ -227,4 +235,7 @@ def campaign_out(c: Campaign) -> dict:
 
 
 def task_out(t: Task) -> dict:
-    return fields(t, "id", "kind", "status", "contact_id", "due_at", "data")
+    out = fields(t, "id", "kind", "status", "contact_id", "due_at", "data")
+    if str(out["data"].get("reason", "")).startswith("AI unavailable:"):  # older tasks stored the provider's raw error
+        out["data"] = {**out["data"], "reason": UNAVAILABLE_NOTE}
+    return out

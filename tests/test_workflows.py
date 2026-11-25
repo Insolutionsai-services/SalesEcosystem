@@ -120,3 +120,17 @@ def test_photo_order_replies_with_a_quote_and_a_yes_places_the_order(s, tenant, 
     assert "White Emulsion Paint 10L" in reply and "Reply YES" in reply and quote.note.startswith("photo order")
     inbound.handle_inbound(s, tenant, "yes", phone="9876500003")  # no LLM turn is scripted: the confirmation is local
     assert quote.status == "won"
+
+
+def test_llm_errors_are_not_shown_to_people(s, tenant, monkeypatch):
+    from salescore.api import schemas
+    from salescore.services.tasks import add_task, list_tasks
+
+    def down(*a, **k):
+        raise inbound.llm.LLMUnavailable('openrouter returned 429: {"error": "Rate limit exceeded"}')
+    monkeypatch.setattr(inbound.llm, "chat", down)
+    sent = inbound.handle_inbound(s, tenant, "can you plan my whole house renovation?", phone="9840011001")
+    old = add_task(s, tenant.id, None, "handoff", reason="AI unavailable: openrouter returned 429: {...}")
+    reasons = [schemas.task_out(t)["data"]["reason"] for t in list_tasks(s, tenant.id, kind="handoff")]
+    assert reasons == [inbound.llm.UNAVAILABLE_NOTE] * 2 and "429" not in sent
+    assert old.data["reason"].startswith("AI unavailable:")  # only the display changes

@@ -109,8 +109,9 @@ def _estate(s, t, args):
     if topic == "dues":
         return dues.pending(s, t, now())
     if topic == "alerts":
-        return estate_ai.alerts(s, t, now())
-    return {k: v for k, v in estate_ai.demand(s, t).items() if k != "formula"}
+        return [{**a, "items": a["items"][:8]} for a in estate_ai.alerts(s, t, now())]
+    found = estate_ai.demand(s, t)
+    return {"leads": found["leads"], "gaps": [{**g, "names": g["names"][:6]} for g in found["gaps"][:6]]}
 
 
 HANDLERS = {"estate_report": _estate, "get_overview": _overview, "whats_waiting": _waiting, "strategy_recommendations": _recommendations,

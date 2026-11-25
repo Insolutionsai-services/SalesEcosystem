@@ -101,3 +101,14 @@ def test_add_and_bulk_delete_catalog_items(client, tenant):
     r = client.post("/v1/catalog/delete", json={"skus": ["NEW-1", "PVC-EL-2", "nope"]}, headers=h)
     assert r.json() == {"deleted": 2}
     assert {i["sku"] for i in client.get("/v1/catalog", headers=h).json()}.isdisjoint({"NEW-1", "PVC-EL-2"})
+
+
+def test_opening_a_handoff_takes_it_off_the_queue(client, s, tenant):
+    from salescore.services.tasks import add_task
+
+    handoff, approval = add_task(s, tenant.id, None, "handoff", reason="x"), add_task(s, tenant.id, None, "approval")
+    s.commit()
+    h = {"X-API-Key": tenant.api_key}
+    assert client.post(f"/v1/tasks/{handoff.id}/seen", headers=h).json() == {"status": "done"}
+    assert client.post(f"/v1/tasks/{approval.id}/seen", headers=h).json() == {"status": "open"}  # still needs a decision
+    assert [x["id"] for x in client.get("/v1/tasks", headers=h).json()] == [approval.id]
