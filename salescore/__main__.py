@@ -7,6 +7,7 @@
   python -m salescore clean                              delete the local SQLite database and trained models
   python -m salescore user EMAIL [--name N] [--role admin|member] [--company NAME]   add a sign-in (asks for the password)
   python -m salescore plan COMPANY trial|unlimited       lift (or restore) the 14-day trial caps for one company
+  python -m salescore admin-password                     set the /admin sign-in password (asks twice; only its hash goes into .env)
 """
 import argparse
 import logging
@@ -14,6 +15,31 @@ import logging
 from .core.utils import load_env_file
 
 load_env_file(".env")  # before anything reads config
+
+
+def set_admin_password() -> None:
+    """Asks for the /admin password twice (hidden), checks it is strong, and writes only its hash to .env."""
+    import getpass
+    import re
+    import sys
+    from pathlib import Path
+
+    from .services import admin_auth, users
+    if sys.stdin.isatty():
+        pw, again = getpass.getpass("New admin password: "), getpass.getpass("Again: ")
+    else:   # piped in (no terminal): one line
+        pw = again = sys.stdin.readline().rstrip("\r\n")
+    if pw != again:
+        raise SystemExit("The two passwords differ; nothing changed.")
+    if why := admin_auth.strong_enough(pw):
+        raise SystemExit(f"Too weak: {why}. Nothing changed.")
+    env = Path(".env")
+    text = env.read_text(encoding="utf-8") if env.exists() else ""
+    line = f"ADMIN_PASSWORD_HASH={users.hash_password(pw)}"
+    text = re.sub(r"^ADMIN_PASSWORD_HASH=.*$", line, text, flags=re.M) if re.search(r"^ADMIN_PASSWORD_HASH=", text, re.M) \
+        else text.rstrip("\n") + "\n# /admin sign-in (username: admin). Hash only; set with: python -m salescore admin-password\n" + line + "\n"
+    env.write_text(text, encoding="utf-8")
+    print(f"Admin password set. Sign in at /admin as '{admin_auth.username()}'. Restart the server (and redeploy) to use it.")
 
 
 def for_each_tenant(job) -> None:
@@ -116,7 +142,12 @@ def main() -> None:
     pl = sub.add_parser("plan", help="set a company's plan: trial (14 days, small caps) or unlimited")
     pl.add_argument("company")
     pl.add_argument("plan", choices=["trial", "unlimited"])
+    sub.add_parser("admin-password", help="set the /admin dashboard password (username: admin, or ADMIN_USERNAME)")
     args = parser.parse_args()
+
+    if args.cmd == "admin-password":
+        set_admin_password()
+        return
 
     if args.cmd == "clean":
         clean()

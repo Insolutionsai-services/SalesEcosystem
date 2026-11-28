@@ -45,17 +45,19 @@ def expired(tenant: Tenant) -> bool:
     return is_trial(tenant) and days_left(tenant) == 0
 
 
-def used(s, tenant: Tenant, kind: str) -> int:
+def used(s, tenant: Tenant, kind: str, since=None) -> int:
+    """Lifetime use (trial caps), or from `since` on (this month, on the Plan & billing page). Team logins are always the current count."""
     t = tenant.id
+    act_since = [Activity.at >= since] if since else []
     if kind == "campaigns":
-        return count(s, Campaign, Campaign.tenant_id == t)
+        return count(s, Campaign, Campaign.tenant_id == t, *([Campaign.created_at >= since] if since else []))
     if kind == "emails":
-        return count(s, Activity, Activity.tenant_id == t, Activity.type == "msg_out", Activity.channel == "email")
+        return count(s, Activity, Activity.tenant_id == t, Activity.type == "msg_out", Activity.channel == "email", *act_since)
     if kind == "ai":
-        return count(s, Activity, Activity.tenant_id == t, Activity.type == "llm")
+        return count(s, Activity, Activity.tenant_id == t, Activity.type == "llm", *act_since)
     if kind == "call_minutes":   # what the phone company bills, each connected call rounded UP to the minute, plus practice time
         rows = s.execute(select(Activity.type, Activity.data["duration_s"].as_integer())   # only the number: call records also hold whole transcripts
-                         .where(Activity.tenant_id == t, Activity.type.in_(("call", "voice_turn")))).all()
+                         .where(Activity.tenant_id == t, Activity.type.in_(("call", "voice_turn")), *act_since)).all()
         practice = sum(k == "voice_turn" for k, _ in rows) * PRACTICE_TURN_S if is_trial(tenant) else 0   # free minutes don't come off a paid budget after an upgrade
         return sum(-(-(d or 0) // 60) for k, d in rows if k == "call") + practice // 60
     return count(s, User, User.tenant_id == t)

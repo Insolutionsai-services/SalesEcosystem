@@ -110,7 +110,7 @@ def test_signups_remember_the_outreach_link_they_came_from(client):
     rows = client.get("/v1/tenants", headers={"X-Admin-Key": "adm"}).json()
     asha = next(r for r in rows if r["name"] == "Asha Lights")
     assert asha["source"] == "mail city=pune kind=smart" and asha["plan"] == "trial" and asha["members"] == ["asha@lights.in"]
-    assert client.get("/v1/tenants").status_code == 422  # no admin key, no list
+    assert client.get("/v1/tenants").status_code == 401  # not signed in at /admin and no admin key: no list
 
 
 def test_outreach_sends_and_replies_show_in_gyc(client):

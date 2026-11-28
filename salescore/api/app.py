@@ -11,15 +11,22 @@ from ..ai.llm import LLMUnavailable
 from ..services.plan import PlanLimit
 from ..core.config import CONTACT_URL, DEMO_BOOKING_URL, MEDIA_DIR, PUBLIC_BASE_URL
 from ..core.models import init_db
-from . import auth, routes, webhooks
+from ..core.models import Session
+from ..services.owner import record_deployment
+from . import auth, owner, routes, webhooks
 
 UI = Path(__file__).resolve().parent.parent / "web" / "index.html"
+ADMIN_UI = UI.with_name("admin.html")
 
 init_db()
+with Session() as _s:
+    record_deployment(_s)   # owner console → System: which code version is running since when
 app = FastAPI(title="GYC", version="0.1")
 app.include_router(routes.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
+app.include_router(owner.router)
+app.include_router(owner.auth_router)
 
 MAX_BODY = 12 * 1024 * 1024   # every upload (poster, recording, CSV) is read into memory, and the server has 1 GB
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
@@ -75,6 +82,12 @@ async def guard(request: Request, call_next):
 @app.get("/", include_in_schema=False)
 def ui():
     return FileResponse(UI)
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_ui():
+    """The owner's admin dashboard: its own page. The page holds no data; every /v1/owner call checks OWNER_EMAILS."""
+    return FileResponse(ADMIN_UI, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
 
 
 @app.get("/robots.txt", include_in_schema=False)

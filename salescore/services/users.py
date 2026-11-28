@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, or_, select
 
 from ..core.models import LoginToken, Tenant, User
 from ..core.utils import norm_email, now
-from . import plan
+from . import access as access_rules, plan
 
 ROLES = ("admin", "member")
 MIN_PASSWORD = 8
@@ -83,6 +83,8 @@ def check_login(s, email: str, password: str) -> User:
         _fails[email] = ((fails if at < until else 0) + 1, at + LOCKOUT)  # the window restarts after a quiet spell
         raise ValueError("wrong email or password")
     _fails.pop(email, None)
+    if user.disabled:
+        raise ValueError("this login has been switched off; contact GYC")
     return user
 
 
@@ -126,7 +128,8 @@ def user_for_token(s, token: str | None) -> User | None:
     slid = min(at + SESSION_IDLE, row.created_at + SESSION_MAX)
     if slid - row.expires_at > timedelta(minutes=1):  # at most one write a minute per browser
         row.expires_at = slid
-    return s.get(User, row.user_id)
+    user = s.get(User, row.user_id)
+    return None if user is None or user.disabled else user
 
 
 def sign_out(s, token: str | None) -> None:
@@ -149,12 +152,22 @@ def _admins(s, tenant_id: int) -> int:
     return s.scalar(select(func.count()).select_from(User).where(User.tenant_id == tenant_id, User.role == "admin"))
 
 
-def update_user(s, user: User, role: str | None = None, password: str | None = None) -> User:
+def set_access(user: User, access: dict | None) -> None:
+    """The sales lead decides what a rep may open and change; leads always have everything, so nothing is stored for them."""
+    user.access = None if user.role == "admin" else access_rules.validate(access)
+
+
+def update_user(s, user: User, role: str | None = None, password: str | None = None, access: dict | None = None,
+                reset_access: bool = False) -> User:
     if role:
         _valid_role(role)
         if user.role == "admin" and role != "admin" and _admins(s, user.tenant_id) == 1:
             raise ValueError("the company needs at least one sales lead")
         user.role = role
+        if role == "admin":
+            user.access = None
+    if access is not None or reset_access:  # after the role: a lead never keeps limits
+        set_access(user, None if reset_access else access)
     if password:  # an admin resetting a forgotten password
         user.password_hash = hash_password(_valid_password(password))
         _revoke(s, user.id)

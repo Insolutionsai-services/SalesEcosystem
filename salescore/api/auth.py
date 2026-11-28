@@ -8,7 +8,8 @@ from fastapi.responses import RedirectResponse
 
 from ..core.config import PUBLIC_BASE_URL
 from ..core.models import Tenant, User
-from ..services import otp, users
+from ..core.playbook import setting
+from ..services import access, otp, users
 from . import schemas
 from .deps import SESSION_COOKIE, admin_user, current_user, db, owned, transaction
 
@@ -153,6 +154,12 @@ def change_password(body: schemas.PasswordChange, user: User = Depends(current_u
     return {"ok": True}
 
 
+@router.get("/access/options")
+def access_options(admin: User = Depends(admin_user), s=Depends(db)):
+    """Sales lead: the screens, agents and templates the per-person access editor offers."""
+    return access.options(setting(s.get(Tenant, admin.tenant_id), "industry"))
+
+
 @router.get("/users")
 def team_users(user: User = Depends(current_user), s=Depends(db)):
     return [schemas.user_out(u) for u in users.list_users(s, user.tenant_id)]
@@ -162,13 +169,16 @@ def team_users(user: User = Depends(current_user), s=Depends(db)):
 def add_user(body: schemas.NewUser, admin: User = Depends(admin_user), s=Depends(db)):
     with transaction(s):
         u = users.create_user(s, admin.tenant_id, body.email, body.name, body.password, body.role)
+        if body.access is not None:
+            users.set_access(u, body.access)
     return schemas.user_out(u)
 
 
 @router.put("/users/{user_id}")
 def edit_user(user_id: int, body: schemas.UserEdit, admin: User = Depends(admin_user), s=Depends(db)):
     with transaction(s):
-        u = users.update_user(s, owned(s, User, user_id, s.get(Tenant, admin.tenant_id)), body.role, body.password)
+        u = users.update_user(s, owned(s, User, user_id, s.get(Tenant, admin.tenant_id)), body.role, body.password,
+                              body.access, body.reset_access)
     return schemas.user_out(u)
 
 
