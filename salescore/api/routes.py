@@ -20,10 +20,10 @@ from ..core.models import Activity, Campaign, Client, Contact, Quote, Task, Tena
 from ..core.playbook import setting
 from ..core.utils import norm_email, norm_phone, now
 from ..marketing import attribution, audience, distribution, orchestrator, poster, strategy
-from ..services import activity, catalog, channels, compliance, contacts, plan, quotes, estate_ai, realestate, receipt, tasks, users, voice_auto
+from ..services import access, activity, pricing, catalog, channels, compliance, contacts, plan, quotes, estate_ai, realestate, receipt, tasks, users, voice_auto
 from ..workflows import approvals, copilot, followups, inbound, photo_order, scheduler
 from . import schemas
-from .deps import db, manager, owned, require_admin, signed_in, tenant_of, transaction
+from .deps import admin_user, agent_editor, db, manager, owned, require_admin, signed_in, tenant_of, transaction
 
 router = APIRouter(prefix="/v1")
 
@@ -32,7 +32,9 @@ router = APIRouter(prefix="/v1")
 def list_tenants(s=Depends(db)):
     """Platform owner: every company, where it came from and how far its trial is. Sign-ups from outreach carry source="mail ..."."""
     return [{"id": t.id, "name": t.name, "plan": t.plan, "since": t.plan_started_at.date().isoformat(), "source": t.source, "api_key": t.api_key,
-             "members": [u.email for u in s.scalars(select(User).where(User.tenant_id == t.id))]}
+             "members": [u.email for u in s.scalars(select(User).where(User.tenant_id == t.id))],
+             "plan_request": (r.data if (r := s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.type == "plan_request")
+                                                       .order_by(Activity.id.desc()).limit(1)).first()) else None)}
             for t in s.scalars(select(Tenant).order_by(Tenant.id))]
 
 
@@ -415,6 +417,31 @@ def plan_status(t: Tenant = Depends(tenant_of), s=Depends(db)):
     return plan.status(s, t)
 
 
+@router.get("/plans")
+def plans_page(t: Tenant = Depends(tenant_of), s=Depends(db)):
+    """Plan & billing page: presets, unit prices built from provider costs, the company's plan and its last plan request."""
+    last = s.scalars(select(Activity).where(Activity.tenant_id == t.id, Activity.type == "plan_request").order_by(Activity.id.desc()).limit(1)).first()
+    st = plan.status(s, t)
+    return {**pricing.catalog(), "current": {**pricing.current(t), "days_left": st["days_left"], "expired": st["expired"]},
+            "request": last.data if last else None}
+
+
+@router.get("/pricing/costs", dependencies=[Depends(require_admin)])
+def pricing_costs(companies: int | None = None):
+    """Platform owner: what each unit costs us per provider, what the customer pays, and so the margin (?companies=25 to plan ahead)."""
+    return pricing.cost_sheet(companies)
+
+
+@router.post("/plan/request")
+def request_plan(body: schemas.PlanRequest, user: User = Depends(admin_user), s=Depends(db)):
+    """Sales lead: ask for a plan. The price is worked out here, recorded, and the GYC team switches it on after confirming."""
+    t = s.get(Tenant, user.tenant_id)
+    with transaction(s):
+        q = pricing.stamp(pricing.quote(body.model_dump()), user.email)
+        activity.log_activity(s, t.id, None, "plan_request", f"Asked for the {q['label']} plan", **q)
+    return q
+
+
 @router.post("/campaigns")
 def create_campaign(body: schemas.NewCampaign, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """A manager's own campaign idea: still runs Creative -> Verification -> Approval."""
@@ -508,16 +535,18 @@ def ask_copilot(body: schemas.CopilotMessage, t: Tenant = Depends(tenant_of), s=
 
 
 @router.get("/agents")
-def list_agents(t: Tenant = Depends(tenant_of), s=Depends(db)):
-    """Each agent with its on/off state, 30-day activity and editable settings."""
-    team = roster(s, t)
+def list_agents(t: Tenant = Depends(tenant_of), user: User | None = Depends(signed_in), x_api_key: str | None = Header(None), s=Depends(db)):
+    """Each agent with its on/off state, 30-day activity and editable settings. A rep only sees the agents the sales lead shared."""
+    levels = None if x_api_key else access.resolve(user)["agents"]
+    team = [a for a in roster(s, t) if levels is None or levels.get(a["key"]) != "hidden"]
     for a in team:
         a["fields"] = agent_config.fields_with_values(t, a["key"])
         a["locked_reason"] = agent_config.ALWAYS_ON.get(a["key"])
+        a["can_edit"] = levels is None or levels.get(a["key"]) == "edit"
     return {"agents": team, "presets": [{"key": k, "label": v["label"], "on": v["on"]} for k, v in agent_config.PRESETS.items()]}
 
 
-@router.put("/agents/{key}", dependencies=[Depends(manager)])
+@router.put("/agents/{key}", dependencies=[Depends(agent_editor)])
 def update_agent(key: str, body: schemas.AgentUpdate, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Switch an agent on/off and/or change its settings; the local models retrain right away."""
     with transaction(s):
@@ -532,6 +561,11 @@ def apply_preset(body: schemas.Preset, t: Tenant = Depends(tenant_of), s=Depends
     with transaction(s):
         t.playbook = agent_config.apply_preset(t.playbook, body.preset)
     return {k: agent_config.state(t, k) for k in agent_config.FIELDS}
+
+
+def voice_caller(x_api_key: str | None = Header(None), user: User | None = Depends(signed_in)) -> None:
+    """Real phone calls cost money: the lead, the API key, or a rep with edit access to the Voice agent."""
+    agent_editor("voice", x_api_key, user)
 
 
 # ---- Voice agent: the app owns the settings and the screens; the phone-call engine runs as its own small service (voice/phone.py) ----
@@ -642,7 +676,7 @@ def voice_result(body: schemas.VoiceResult, x_voice_key: str | None = Header(Non
     return {"ok": True}
 
 
-@router.post("/voice/call", dependencies=[Depends(manager)])
+@router.post("/voice/call", dependencies=[Depends(voice_caller)])
 def voice_call(body: schemas.VoiceCall, t: Tenant = Depends(tenant_of), s=Depends(db)):
     """Phone one customer now. A person must confirm they agreed to calls; people who opted out are never called.
     Free companies practise in the browser; a real line is set up by the team once they contact us (then their plan is unlimited)."""

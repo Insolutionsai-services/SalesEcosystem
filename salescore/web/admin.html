@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>GYC Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@600;700;800&display=swap">
+<style>
+  /* GYC admin dashboard: the platform owner's view of every customer, login, rupee and the server. Same look as the app. */
+  :root {
+    --bg: #f2f5f3; --surface: #ffffff; --surface-2: #edf1ee; --surface-3: #e3e9e5;
+    --ink: #12201c; --muted: #5a6964; --line: #dce4e0; --line-strong: #c8d3ce;
+    --rail: #0f2723; --rail-2: #163631; --rail-3: #1f4740; --rail-ink: #e6f0ec; --rail-muted: #93aea6;
+    --rail-agent: #3ccab5; --rail-you: #f2a443; --rail-end: #c8392e;   /* accents on the rail, which stays dark in both themes */
+    --agent: #0a7a6a; --agent-soft: #dbf1ec; --agent-ring: rgba(10, 122, 106, .22);
+    --human: #b25f0d; --human-soft: #fcebd5; --on-human: #ffffff;
+    --good: #1b7a44; --good-soft: #dff2e6; --warn: #985700; --warn-soft: #fbefd9; --bad: #b42318; --bad-soft: #fbe3e0;
+    --bubble-out: #0a7a6a; --on-bubble-out: #ffffff; --scrim: rgba(8, 18, 15, .45);
+    --s1: #257de0; --s2: #f47230; --s3: #00b894; --s4: #f2a600; --s5: #ee7fac;   /* chart series, validated order */
+    --shadow: 0 1px 2px rgba(18, 32, 28, .05), 0 1px 1px rgba(18, 32, 28, .03);
+    --shadow-hover: 0 8px 24px -8px rgba(18, 32, 28, .18);
+    --shadow-pop: 0 18px 48px -12px rgba(18, 32, 28, .28);
+    --font-display: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --r: 14px; --r-sm: 10px; --rail-w: 240px; --copilot: 392px;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a100f; --surface: #111917; --surface-2: #18221f; --surface-3: #1f2b27;
+      --ink: #e2eae6; --muted: #92a29c; --line: #222e2a; --line-strong: #2f3d38;
+      --rail: #07110f; --rail-2: #0f1f1b; --rail-3: #173029; --rail-ink: #e2ede9; --rail-muted: #85a097;
+      --agent: #3ccab5; --agent-soft: #10302a; --agent-ring: rgba(60, 202, 181, .25);
+      --human: #f2a443; --human-soft: #3a2913; --on-human: #1c1206;
+      --good: #4cc27f; --good-soft: #12301f; --warn: #e7a53c; --warn-soft: #33260f; --bad: #f2766b; --bad-soft: #3a1a17;
+      --bubble-out: #1d6c61; --on-bubble-out: #f2fbf9; --scrim: rgba(0, 0, 0, .6);
+      --s1: #338ced; --s2: #e76624; --s3: #00a888; --s4: #d28e05; --s5: #e24d8b;
+      --shadow: none; --shadow-hover: 0 8px 24px -8px rgba(0, 0, 0, .6); --shadow-pop: 0 18px 48px -12px rgba(0, 0, 0, .7);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a100f; --surface: #111917; --surface-2: #18221f; --surface-3: #1f2b27;
+    --ink: #e2eae6; --muted: #92a29c; --line: #222e2a; --line-strong: #2f3d38;
+    --rail: #07110f; --rail-2: #0f1f1b; --rail-3: #173029; --rail-ink: #e2ede9; --rail-muted: #85a097;
+    --agent: #3ccab5; --agent-soft: #10302a; --agent-ring: rgba(60, 202, 181, .25);
+    --human: #f2a443; --human-soft: #3a2913; --on-human: #1c1206;
+    --good: #4cc27f; --good-soft: #12301f; --warn: #e7a53c; --warn-soft: #33260f; --bad: #f2766b; --bad-soft: #3a1a17;
+    --bubble-out: #1d6c61; --on-bubble-out: #f2fbf9; --scrim: rgba(0, 0, 0, .6);
+    --s1: #338ced; --s2: #e76624; --s3: #00a888; --s4: #d28e05; --s5: #e24d8b;
+    --shadow: none; --shadow-hover: 0 8px 24px -8px rgba(0, 0, 0, .6); --shadow-pop: 0 18px 48px -12px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.015em; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.75rem; line-height: 1.15; } h2 { font-size: 1.04rem; } h3 { font-size: .95rem; }
+  a { color: var(--agent); }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--human); outline-offset: 2px; }
+  svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .mono { font-family: var(--font-mono); font-size: .82em; }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); } .small { font-size: .84rem; } .tiny { font-size: .75rem; }
+  .eyebrow { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .panel-head h2 { display: flex; align-items: center; gap: 9px; }
+  .panel-head h2 svg { color: var(--agent); }
+  .cols { display: grid; gap: 22px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #quoteRows .row, #quoteRows [data-pay-form] { flex-wrap: nowrap; }
+  #quoteRows td:nth-child(4), #quoteRows td:nth-child(6), #quoteRows td:nth-child(7), #quoteRows td:last-child { white-space: nowrap; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .btn { --spin: var(--ink); position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    border: 1px solid var(--line-strong); background: var(--surface); padding: 8px 15px; border-radius: var(--r-sm);
+    cursor: pointer; white-space: nowrap; font-weight: 600; font-size: .9rem;
+    transition: transform .12s ease, box-shadow .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, filter .18s ease; }
+  .btn:hover { border-color: var(--muted); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+  .btn:active { transform: translateY(0) scale(.97); box-shadow: none; transition-duration: .06s; }
+  .btn.human { --spin: var(--on-human); background: var(--human); border-color: var(--human); color: var(--on-human); }
+  .btn.human:hover { filter: brightness(1.07); }
+  .btn.agent { --spin: var(--agent); background: var(--agent-soft); border-color: transparent; color: var(--agent); }
+  .btn.agent:hover { border-color: var(--agent); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--muted); font-weight: 500; }
+  .btn.ghost:hover { background: var(--surface-2); color: var(--ink); box-shadow: none; transform: none; }
+  .btn.danger { --spin: var(--bad); color: var(--bad); }
+  .btn.danger:hover { border-color: var(--bad); background: var(--bad-soft); }
+  .btn.sm { padding: 5px 11px; font-size: .82rem; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+  .btn.is-busy { color: transparent !important; cursor: progress; opacity: 1; }
+  .btn.is-busy::after { content: ""; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--spin); border-right-color: transparent; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  input, textarea, select { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 9px 11px; width: 100%;
+    transition: border-color .15s ease, box-shadow .15s ease; }
+  input:hover, textarea:hover, select:hover { border-color: var(--muted); }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--agent); box-shadow: 0 0 0 4px var(--agent-ring); }
+  textarea { resize: vertical; }
+  label { display: block; font-size: .8rem; color: var(--muted); margin: 12px 0 5px; font-weight: 600; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: .74rem; background: var(--surface-2);
+    color: var(--muted); white-space: nowrap; font-weight: 600; }
+  .pill.good { background: var(--good-soft); color: var(--good); } .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); } .pill.agent { background: var(--agent-soft); color: var(--agent); }
+  .pill.human { background: var(--human-soft); color: var(--human); }
+  .pill.good::before, .pill.agent::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .empty { color: var(--muted); padding: 26px 16px; text-align: center; font-size: .9rem; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .empty svg { width: 28px; height: 28px; color: var(--line-strong); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr { transition: background-color .15s ease; } tbody tr:hover { background: var(--surface-2); }
+  th { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll-x { overflow-x: auto; }
+  .skeleton { border-radius: var(--r-sm); min-height: 14px; background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .seg .n { margin-left: 6px; font-size: .72rem; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .seg .n:empty { display: none; } .seg button[aria-pressed="true"] .n { background: var(--agent-soft); color: var(--agent); }
+  input[type="range"] { padding: 0; border: 0; accent-color: var(--agent); background: transparent; box-shadow: none; height: 26px; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 12px; padding: 4px; gap: 4px; flex-wrap: wrap; }
+  .seg button { border: 0; background: transparent; padding: 8px 14px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: .86rem; color: var(--muted);
+    display: inline-flex; gap: 7px; align-items: center; transition: background-color .18s ease, color .18s ease, box-shadow .18s ease; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+  .seg button:disabled { opacity: .45; cursor: not-allowed; }
+  dialog.sheet { border: 0; padding: 0; border-radius: var(--r); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); width: min(560px, calc(100vw - 32px)); }
+  dialog.sheet::backdrop { background: var(--scrim); }
+  .sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 4px; }
+  .sheet-head h2 { margin: 0; font-size: 1.15rem; } .sheet-head p { margin: 4px 0 0; color: var(--muted); font-size: .85rem; }
+  .sheet-body { padding: 8px 22px 4px; } .sheet-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px 20px; }
+  #toast { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg);
+    padding: 11px 18px; border-radius: 12px; max-width: min(92vw, 620px); z-index: 30; font-size: .9rem; box-shadow: var(--shadow-pop); font-weight: 500; }
+  #toast:not([hidden]) { animation: toast-in .3s var(--ease); }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px) scale(.97); } }
+  #toast.bad { background: var(--bad); color: var(--surface); }
+  dialog.sheet.wide { width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+  dialog.sheet.wide > form { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+  dialog.sheet.wide .sheet-body { overflow-y: auto; padding-bottom: 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* ---------- owner console ---------- */
+  .own-tabs { align-self: flex-start; }
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .kpi { text-align: left; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; border-radius: var(--r);
+    border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); cursor: pointer; transition: transform .18s var(--ease), box-shadow .18s var(--ease), border-color .18s var(--ease); }
+  .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); border-color: var(--line-strong); }
+  .kpi .k { font-size: .78rem; color: var(--muted); font-weight: 600; }
+  .kpi .v { font-family: var(--font-display); font-size: 2rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
+  .kpi .v.bad { color: var(--bad); } .kpi .v.good { color: var(--good); }
+  .kpi .d { font-size: .78rem; color: var(--muted); }
+  .own-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; }
+  .own-grid .panel h2 { font-size: 1rem; }
+  .card-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .card-h span { font-size: .78rem; color: var(--muted); }
+  .chart { position: relative; }
+  .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart .grid line { stroke: var(--line); stroke-width: 1; } .chart .axis text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+  .chart .bar { fill: var(--s1); transition: opacity .15s; } .chart .hit { fill: transparent; cursor: default; }
+  .chart .col:hover .bar, .chart .col:focus .bar { opacity: .75; } .chart .col:focus { outline: none; }
+  .tipbox { position: absolute; pointer-events: none; transform: translate(-50%, -100%); background: var(--ink); color: var(--surface); padding: 6px 10px; border-radius: 8px;
+    font-size: .78rem; white-space: nowrap; box-shadow: var(--shadow-pop); z-index: 3; }
+  .tipbox[hidden] { display: none; }
+  .hbars { display: flex; flex-direction: column; gap: 6px; }
+  .hb { display: grid; grid-template-columns: minmax(90px, 140px) minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 7px 8px; border-radius: 8px; border: 0;
+    background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+  .hb:hover { background: var(--surface-2); }
+  .hb .lb { font-size: .86rem; } .hb .val { font-weight: 700; font-size: .88rem; font-variant-numeric: tabular-nums; text-align: right; }
+  .hb .val small { font-weight: 400; color: var(--muted); }
+  .hb .track { height: 10px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+  .hb .track i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--s1); transition: width .4s var(--ease); }
+  .hb .track i.neg { background: var(--bad); }
+  .att { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .att button { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border-radius: var(--r-sm); border: 1px solid var(--line);
+    background: var(--surface); font: inherit; color: inherit; font-size: .86rem; cursor: pointer; }
+  .att button:hover { border-color: var(--line-strong); background: var(--surface-2); }
+  .att .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .att .dot.human { background: var(--human); } .att .dot.warn { background: var(--warn); } .att .dot.bad { background: var(--bad); }
+  .att .go { margin-left: auto; color: var(--muted); }
+  .own-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .own-tools input[type=search] { flex: 1; min-width: 200px; max-width: 320px; }
+  .own-tools select { width: auto; }
+  .otable { width: 100%; font-size: .86rem; } .otable th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; letter-spacing: inherit; text-transform: inherit; }
+  .otable th button[aria-sort]::after { content: " ↕"; opacity: .4; } .otable th button[aria-sort="ascending"]::after { content: " ↑"; opacity: 1; } .otable th button[aria-sort="descending"]::after { content: " ↓"; opacity: 1; }
+  .otable td.num, .otable th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .otable tbody tr[data-cust] { cursor: pointer; } .otable tbody tr[data-cust]:hover { background: var(--surface-2); }
+  .otable .nm b { display: block; } .otable .nm span { font-size: .74rem; color: var(--muted); }
+  .neg { color: var(--bad); } .pos { color: var(--good); }
+  .reqs { display: flex; flex-direction: column; gap: 10px; }
+  .req { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); }
+  .req.pending { border-color: var(--human); }
+  .req .t { font-weight: 600; } .req .m { font-size: .8rem; color: var(--muted); } .req .acts { display: flex; gap: 8px; }
+  .req .price { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+  .ometers { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .om .t { display: flex; justify-content: space-between; font-size: .78rem; color: var(--muted); }
+  .om b { font-family: var(--font-display); font-size: 1.05rem; display: block; margin: 2px 0 6px; }
+  .om .track { height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; } .om .track i { display: block; height: 100%; background: var(--s1); border-radius: inherit; }
+  .om.warn .track i { background: var(--warn); } .om.bad .track i { background: var(--bad); }
+  .plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: .86rem; }
+  .plist li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); } .plist span { color: var(--muted); font-size: .78rem; }
+  .cfrm { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; } .cfrm label { margin-top: 0; }
+  .sysgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .sys-tile { display: flex; flex-direction: column; gap: 6px; }
+  .sys-tile .v { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; } .sys-tile .d { font-size: .78rem; color: var(--muted); }
+  .sys-tile .track { height: 8px; border-radius: 99px; background: var(--surface-3); overflow: hidden; } .sys-tile .track i { display: block; height: 100%; background: var(--s1); border-radius: inherit; }
+  .sys-tile.warn .track i { background: var(--warn); } .sys-tile.bad .track i { background: var(--bad); }
+  .deps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; } .deps li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: .86rem; }
+  .deps li:first-child { border-top: 0; } .deps code { font-family: var(--font-mono); font-size: .8rem; }
+  .slider-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; } .slider-row input[type=range] { flex: 1; min-width: 180px; accent-color: var(--agent); }
+  .slider-row output { font-weight: 700; min-width: 110px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .own-grid { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 560px) { .kpis { grid-template-columns: minmax(0, 1fr); } .cfrm { grid-template-columns: minmax(0, 1fr); } .hb { grid-template-columns: 90px minmax(0, 1fr) auto; } }
+
+
+  /* ---------- admin page frame ---------- */
+  .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: var(--rail); color: var(--rail-ink); }
+  .top .mark { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--human); color: var(--on-human); font-weight: 800; font-family: var(--font-display); }
+  .top b { font-family: var(--font-display); font-size: 1.02rem; } .top .tag { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--rail-muted); }
+  .top .sp { flex: 1; } .top .who { font-size: .84rem; color: var(--rail-muted); }
+  .top .btn { background: var(--rail-2); border-color: var(--rail-3); color: var(--rail-ink); }
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 24px 60px; display: flex; flex-direction: column; gap: 18px; }
+  .signin { min-height: 100dvh; display: grid; place-items: center; padding: 24px; }
+  .signin .panel { width: min(400px, 100%); display: flex; flex-direction: column; gap: 4px; }
+  .signin h1 { font-size: 1.4rem; } .signin .btn { width: 100%; margin-top: 16px; padding: 11px; }
+  .form-error { color: var(--bad); background: var(--bad-soft); border-radius: 8px; padding: 8px 10px; font-size: .84rem; margin-top: 10px; }
+  .acts { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  .upw { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; } .upw input { max-width: 240px; padding: 6px 9px; }
+  .table-wrap { overflow-x: auto; }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) { main { padding: 16px; } .top { padding: 10px 16px; } .top .who { display: none; } }
+
+  .kpi .v { font-variant-numeric: normal; }
+</style>
+</head>
+<body>
+<div class="signin" id="signin" hidden>
+  <form class="panel" id="siForm">
+    <div class="eyebrow">GYC admin</div><h1>Sign in</h1>
+    <p class="small muted" style="margin:4px 0 0">For the GYC owner only.</p>
+    <label for="siEmail">Username</label><input id="siEmail" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+    <label for="siPass">Password</label><input id="siPass" type="password" autocomplete="current-password" required>
+    <div class="form-error" id="siErr" role="alert" hidden></div>
+    <button class="btn human" id="siBtn" type="submit">Sign in</button>
+  </form>
+</div>
+<div id="app" hidden>
+  <header class="top"><span class="mark">G</span><div><b>GYC Admin</b><div class="tag">All customers</div></div><span class="sp"></span>
+    <span class="who" id="who"></span><button class="btn sm" type="button" id="theme" aria-label="Switch light or dark theme"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    <button class="btn sm" type="button" id="signOut">Sign out</button></header>
+  <main>
+    <div class="page-head"><div><div class="eyebrow">Admin dashboard</div><h1>Your business</h1>
+      <p>Every customer and login, what they pay, what they cost you this month, and how the server is doing.</p></div>
+      <button class="btn ghost sm" type="button" id="ownRefresh">Refresh</button></div>
+    <div class="seg own-tabs" role="tablist" aria-label="Admin sections" id="ownTabs">
+      <button type="button" role="tab" data-otab="overview">Overview</button><button type="button" role="tab" data-otab="customers">Customers</button>
+      <button type="button" role="tab" data-otab="users">Users</button><button type="button" role="tab" data-otab="revenue">Revenue</button>
+      <button type="button" role="tab" data-otab="requests">Plan requests<span class="n" id="ownReqN"></span></button>
+      <button type="button" role="tab" data-otab="pricing">Pricing</button><button type="button" role="tab" data-otab="system">System</button></div>
+    <div id="ownBody" style="display:flex;flex-direction:column;gap:16px"></div>
+  </main>
+</div>
+<dialog class="sheet wide" id="ownDlg" aria-labelledby="ownDlgTitle">
+  <div class="sheet-head"><div><h2 id="ownDlgTitle">Customer</h2><p id="ownDlgSub"></p></div><button class="btn ghost sm" type="button" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="ownDlgBody" style="display:flex;flex-direction:column;gap:18px;padding-bottom:20px"></div>
+</dialog>
+
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script>
+const $ = (sel, el = document) => el.querySelector(sel);
+const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pill = (text, tone = "") => `<span class="pill ${tone}">${esc(text)}</span>`;
+const parseTime = (iso) => new Date(iso.endsWith("Z") ? iso : iso + "Z");
+function ago(iso) {
+  if (!iso) return "";
+  const s = Math.round((Date.now() - parseTime(iso)) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return parseTime(iso).toLocaleDateString([], { day: "numeric", month: "short" });
+}
+function toast(msg, bad = false) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = bad ? "bad" : ""; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (t.hidden = true), bad ? 7000 : 3800);
+}
+async function busy(btn, fn) {
+  btn.disabled = true; btn.classList.add("is-busy"); btn.setAttribute("aria-busy", "true");
+  try { return await fn(); } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.classList.remove("is-busy"); btn.removeAttribute("aria-busy"); }
+}
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const inr = (n, d = 0) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: d, minimumFractionDigits: d }).format(n || 0);
+const num = (n) => Number(n).toLocaleString("en-IN");
+// Owner console (platform owner only): customers, revenue and profit, plan requests, prices, server health. All sections link to each other.
+const own = { tab: "overview", ov: null, cust: null, reqs: null, pricing: null, sys: null, q: "", plan: "", status: "", sort: ["since", -1], reqFilter: "pending", companies: null, open: null };
+const PLAN_NAME = { trial: "Trial", starter: "Starter", growth: "Growth", custom: "Custom" };
+const STATUS_NAME = { paying: "Paying", trial: "On trial", trial_ended: "Trial ended", unpriced: "Price not set" };
+const OWN_TONE = { paying: "good", trial: "agent", trial_ended: "", unpriced: "warn" };
+const signed = (n) => (n < 0 ? "−" : "") + inr(Math.abs(n));
+const ownDate = (iso) => iso ? new Date(iso).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }) : "–";
+async function ownLoad(force = false) {
+  const need = [];
+  if (force || !own.ov) need.push(api("/v1/owner/overview").then((d) => (own.ov = d)));
+  if (force || !own.cust) need.push(api("/v1/owner/customers").then((d) => (own.cust = d)));
+  if (force || !own.reqs) need.push(api("/v1/owner/requests").then((d) => (own.reqs = d)));
+  if (own.tab === "pricing" && (force || !own.pricing)) need.push(api(`/v1/owner/pricing${own.companies ? `?companies=${own.companies}` : ""}`).then((d) => (own.pricing = d)));
+  if (own.tab === "users" && (force || !own.users)) need.push(api("/v1/owner/users").then((d) => (own.users = d)));
+  if (own.tab === "system" && (force || !own.sys)) need.push(api("/v1/owner/system").then((d) => (own.sys = d)));
+  await Promise.all(need);
+  const pending = own.reqs.filter((r) => r.status === "pending").length;
+  $("#ownReqN").textContent = pending || "";
+}
+async function ownStart() {
+  if (!own.ov) $("#ownBody").innerHTML = `<div class="skeleton" style="height:120px"></div><div class="skeleton" style="height:260px"></div>`;
+  await ownLoad(); ownRender();
+}
+function ownGo(tab, filters = {}) { Object.assign(own, { tab, ...filters }); ownLoad().then(ownRender).catch((e) => toast(e.message, true)); scrollTo(0, 0); }
+function ownRender() {
+  $$("#ownTabs [data-otab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.otab === own.tab)));
+  $$("#ownTabs [data-otab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.otab === own.tab)));
+  ({ overview: ownOverview, customers: ownCustomers, users: ownUsers, revenue: ownRevenue, requests: ownRequests, pricing: ownPricing, system: ownSystem })[own.tab]();
+}
+function kpi(label, value, sub, go, tone = "") {
+  return `<button type="button" class="kpi" data-ogo="${go}"><span class="k">${esc(label)}</span><span class="v ${tone}">${value}</span><span class="d">${sub}</span></button>`;
+}
+function barChart(rows) {  // one series, one hue; hover/focus shows the exact value; a hidden table reads it out
+  const W = 600, H = 190, top = 12, bottom = 26, left = 28, max = Math.max(1, ...rows.map((r) => r.count)), step = Math.max(1, Math.ceil(max / 4));
+  const ticks = []; for (let v = 0; v <= max + step - 1; v += step) ticks.push(v);
+  const ymax = ticks[ticks.length - 1] || 1, cw = (W - left) / rows.length, bw = Math.min(28, cw * .55);
+  const y = (v) => top + (H - top - bottom) * (1 - v / ymax);
+  const grid = ticks.map((v) => `<line x1="${left}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/>`).join("");
+  const ylab = ticks.map((v) => `<text x="${left - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("");
+  const cols = rows.map((r, i) => {
+    const x = left + i * cw + (cw - bw) / 2, yt = y(r.count), h = H - bottom - yt, rr = Math.min(4, h);
+    const path = h > 0 ? `M${x},${H - bottom} V${yt + rr} Q${x},${yt} ${x + rr},${yt} H${x + bw - rr} Q${x + bw},${yt} ${x + bw},${yt + rr} V${H - bottom} Z` : "";
+    return `<g class="col" tabindex="0" data-tip="${esc(r.label)} · ${r.count} new customer${r.count === 1 ? "" : "s"}" data-x="${x + bw / 2}" data-y="${yt}">
+      <rect class="hit" x="${left + i * cw}" y="${top}" width="${cw}" height="${H - top - bottom}"/>${path ? `<path class="bar" d="${path}"/>` : ""}
+      <text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" class="xl">${i % (rows.length > 8 && innerWidth < 700 ? 2 : 1) ? "" : esc(r.label.split(" ")[0])}</text></g>`;
+  }).join("");
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="New customers per month, last 12 months"><g class="grid">${grid}</g><g class="axis">${ylab}${cols}</g></svg>
+    <div class="tipbox" hidden></div><table class="sr-only"><caption>New customers per month</caption>${rows.map((r) => `<tr><th>${esc(r.label)}</th><td>${r.count}</td></tr>`).join("")}</table></div>`;
+}
+function hbars(items, fmt) {
+  const max = Math.max(1, ...items.map((i) => Math.abs(i.value)));
+  return `<div class="hbars">${items.map((i) => `<button type="button" class="hb" data-ogo="${i.go}"><span class="lb">${esc(i.label)}</span>
+    <span class="track"><i class="${i.value < 0 ? "neg" : ""}" style="width:${Math.round(Math.abs(i.value) / max * 100)}%"></i></span><span class="val">${fmt(i)}</span></button>`).join("")}</div>`;
+}
+function ownOverview() {
+  const o = own.ov, c = o.customers, m = o.money, paying = c.by_status.paying || 0;
+  const tiles = kpi("Customers", num(c.total), `${c.new_this_month ? `+${c.new_this_month} this month` : "none new this month"} · ${paying} paying`, "customers")
+    + kpi("Monthly revenue", inr(m.revenue), paying ? `from ${paying} paying customer${paying === 1 ? "" : "s"}` : "no paying customers yet", "revenue")
+    + kpi(`Costs · ${m.month}`, inr(m.cost), `server ${inr(m.fixed_cost)} + usage ${inr(m.usage_cost)}`, "revenue")
+    + kpi("Profit", signed(m.profit), m.margin_pct == null ? "starts with your first paying customer" : `${m.margin_pct}% margin`, "revenue", m.profit < 0 ? "bad" : m.profit > 0 ? "good" : "");
+  const st = Object.entries(STATUS_NAME).map(([k, label]) => ({ label, value: c.by_status[k] || 0, go: `customers|status=${k}` }));
+  const bp = Object.entries(o.by_plan).map(([k, v]) => ({ label: PLAN_NAME[k], value: v.revenue, n: v.customers, go: `customers|plan=${k}` }));
+  const att = o.attention.length ? `<ul class="att">${o.attention.map((a) => `<li><button type="button" data-att="${a.kind}" data-id="${a.id || ""}"><span class="dot ${a.tone}"></span>${esc(a.text)}<span class="go">→</span></button></li>`).join("")}</ul>`
+    : `<div class="empty">All clear. Nothing needs you right now.</div>`;
+  $("#ownBody").innerHTML = `<div class="kpis">${tiles}</div>
+    <div class="own-grid">
+      <div class="panel"><div class="card-h"><h2>New customers per month</h2><span>Last 12 months · hover a bar</span></div>${barChart(o.signups)}</div>
+      <div class="panel"><div class="card-h"><h2>Customers by status</h2><span>Click to see them</span></div>${hbars(st, (i) => num(i.value))}</div>
+    </div>
+    <div class="own-grid">
+      <div class="panel"><div class="card-h"><h2>Revenue by plan</h2><span>Per month · click to see customers</span></div>${hbars(bp, (i) => `${inr(i.value)} <small>· ${i.n} customer${i.n === 1 ? "" : "s"}</small>`)}</div>
+      <div class="panel"><div class="card-h"><h2>Needs your attention</h2></div>${att}</div>
+    </div>`;
+  ownChartTips();
+}
+function ownChartTips() {
+  const chart = $("#ownBody .chart"); if (!chart) return;
+  const tip = chart.querySelector(".tipbox"), svg = chart.querySelector("svg");
+  const show = (g) => { const r = svg.getBoundingClientRect(), k = r.width / 600; tip.textContent = g.dataset.tip; tip.style.left = `${g.dataset.x * k}px`; tip.style.top = `${g.dataset.y * k - 8}px`; tip.hidden = false; };
+  chart.querySelectorAll(".col").forEach((g) => { g.addEventListener("mouseenter", () => show(g)); g.addEventListener("focus", () => show(g)); g.addEventListener("mouseleave", () => (tip.hidden = true)); g.addEventListener("blur", () => (tip.hidden = true)); });
+}
+function ownCustomers() {
+  const q = own.q.toLowerCase(), [key, dir] = own.sort;
+  const rows = own.cust.filter((r) => (!q || r.name.toLowerCase().includes(q)) && (!own.plan || r.plan === own.plan) && (!own.status || r.status === own.status))
+    .sort((a, b) => (a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0) * dir);
+  const th = (k, label, cls = "") => `<th class="${cls}"><button type="button" data-osort="${k}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}">${label}</button></th>`;
+  const chips = ["", "trial", "starter", "growth", "custom"].map((k) => `<button type="button" data-oplan="${k}" aria-pressed="${own.plan === k}">${k ? PLAN_NAME[k] : "All plans"}</button>`).join("");
+  const body = rows.map((r) => `<tr data-cust="${r.id}"><td class="nm"><b>${esc(r.name)}</b><span>${r.contacts} contacts · ${r.campaigns} campaigns this month</span></td>
+      <td>${esc(PLAN_NAME[r.plan])}</td><td>${pill(r.status_label, OWN_TONE[r.status])}</td><td>${ownDate(r.since)}</td>
+      <td class="num">${r.logins}<div class="tiny muted">${r.last_active ? ago(r.last_active) : "never"}</div></td>
+      <td class="num">${r.price_set ? inr(r.revenue) : "–"}</td><td class="num">${inr(r.cost)}</td><td class="num ${r.profit < 0 ? "neg" : ""}">${signed(r.profit)}</td></tr>`).join("");
+  $("#ownBody").innerHTML = `<div class="panel"><div class="own-tools"><input type="search" id="ownQ" placeholder="Search customers" value="${esc(own.q)}" aria-label="Search customers">
+      <div class="seg" role="group" aria-label="Plan">${chips}</div>
+      <select id="ownStatus" aria-label="Status"><option value="">Any status</option>${Object.entries(STATUS_NAME).map(([k, v]) => `<option value="${k}" ${own.status === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <span class="small muted" style="margin-left:auto">${rows.length} of ${own.cust.length}</span></div>
+    <div class="table-wrap"><table class="otable"><thead><tr>${th("name", "Customer")}${th("plan", "Plan")}${th("status", "Status")}${th("since", "Since")}${th("logins", "Logins", "num")}${th("revenue", "Pays / month", "num")}${th("cost", "Costs you", "num")}${th("profit", "Profit", "num")}</tr></thead>
+    <tbody>${body || `<tr><td colspan="8"><div class="empty">No customers match. <button class="btn sm ghost" type="button" data-oclear>Clear filters</button></div></td></tr>`}</tbody></table></div>
+    <p class="tiny muted" style="margin:10px 0 0">Costs are this month's real usage × your cost rates, plus each paying customer's share of the server. Click a customer for details.</p></div>`;
+}
+function ownRevenue() {
+  const o = own.ov, m = o.money, paying = own.cust.filter((r) => r.revenue);
+  const planRows = Object.entries(o.by_plan).map(([k, v]) => `<tr><td>${PLAN_NAME[k]}</td><td class="num">${v.customers}</td><td class="num">${inr(v.revenue)}</td><td class="num">${inr(v.cost)}</td>
+    <td class="num ${v.revenue - v.cost < 0 ? "neg" : ""}">${signed(v.revenue - v.cost)}</td><td class="num">${v.revenue ? `${Math.round((v.revenue - v.cost) / v.revenue * 100)}%` : "–"}</td></tr>`).join("");
+  const prof = paying.sort((a, b) => b.profit - a.profit).map((r) => ({ label: r.name, value: r.profit, go: `cust|${r.id}` }));
+  $("#ownBody").innerHTML = `<div class="kpis">${kpi("Revenue this month", inr(m.revenue), "what paying customers pay", "customers")}${kpi("Costs this month", inr(m.cost), `server ${inr(m.fixed_cost)} · usage ${inr(m.usage_cost)}`, "pricing")}
+      ${kpi("Profit", signed(m.profit), m.margin_pct == null ? "no revenue yet" : `${m.margin_pct}% margin`, "customers", m.profit < 0 ? "bad" : m.profit > 0 ? "good" : "")}${kpi("Yearly run rate", inr(m.revenue * 12), "this month's revenue × 12", "customers")}</div>
+    <div class="own-grid">
+      <div class="panel"><div class="card-h"><h2>By plan</h2><span>${esc(m.month)}</span></div><div class="table-wrap"><table class="otable"><thead><tr><th>Plan</th><th class="num">Customers</th><th class="num">Revenue</th><th class="num">Costs</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${planRows}</tbody></table></div>
+        <p class="tiny muted" style="margin:10px 0 0">${o.gst_registered ? "GST-registered: costs exclude GST you claim back." : "Not GST-registered: costs include the 18% GST your providers charge you."} Trial usage and the server are in the total costs above.</p></div>
+      <div class="panel"><div class="card-h"><h2>Profit by customer</h2><span>Click for details</span></div>${prof.length ? hbars(prof, (i) => signed(i.value)) : `<div class="empty">No paying customers yet. Approve a plan request or set a plan on a customer.</div>`}</div>
+    </div>`;
+}
+function ownRequests() {
+  const list = own.reqs.filter((r) => own.reqFilter === "all" || r.status === own.reqFilter);
+  const seg = ["pending", "all"].map((k) => `<button type="button" data-orf="${k}" aria-pressed="${own.reqFilter === k}">${k === "pending" ? "Waiting" : "All"}</button>`).join("");
+  $("#ownBody").innerHTML = `<div class="panel"><div class="own-tools"><div class="seg" role="group" aria-label="Show">${seg}</div><span class="small muted">Sent from customers' Plan &amp; billing page</span></div>
+    <div class="reqs">${list.map((r) => `<div class="req ${r.status}"><div><div class="t"><button class="btn ghost sm" type="button" data-cust-open="${r.tenant_id}" style="padding:0;font-weight:700">${esc(r.customer)}</button> asked for ${esc(r.label || r.plan)}</div>
+        <div class="m">${esc((r.lines || []).map((l) => l.label).join(" · "))}</div><div class="m">${esc(r.by || "")} · ${ownDate(r.at)} · ${r.cycle === "year" ? "yearly" : "monthly"}</div></div>
+      <div style="text-align:right"><div class="price">${inr(r.monthly)}<span class="small muted">/month</span></div>${r.once ? `<div class="m">+ ${inr(r.once)} one-time</div>` : ""}
+        ${r.status === "pending" ? `<div class="acts" style="margin-top:8px"><button class="btn sm ghost" type="button" data-rq="${r.id}" data-d="dismiss">Dismiss</button><button class="btn sm human" type="button" data-rq="${r.id}" data-d="approve">Approve &amp; switch plan</button></div>`
+          : pill(r.status === "approved" ? "Approved" : "Dismissed", r.status === "approved" ? "good" : "")}</div></div>`).join("") || `<div class="empty">${own.reqFilter === "pending" ? "No requests waiting." : "No plan requests yet."}</div>`}</div></div>`;
+}
+function ownPricing() {
+  const p = own.pricing, n = p.companies, names = { ai: "AI message", wa_followup: "WhatsApp follow-up", wa_campaign: "WhatsApp campaign message", emails: "Email", call_minutes: "Call minute" };
+  const plans = Object.entries(p.plans).map(([k, v]) => `<tr><td>${PLAN_NAME[k]}</td><td class="num">${inr(v.price)}</td><td class="num">${inr(v.cost)}</td><td class="num ${v.profit < 0 ? "neg" : ""}">${signed(v.profit)}</td><td class="num">${v.margin_pct}%</td>
+    <td class="num">${inr(p.yearly[k].profit)}</td></tr>`).join("");
+  const units = Object.entries(p.units).map(([k, v]) => `<tr><td>${names[k]}</td><td class="num">${inr(v.cost, 3)}</td><td class="num">${inr(v.price, 2)}</td><td class="num">${v.margin_pct}%</td>
+    <td class="small muted">${Object.entries(v.by_provider).map(([pr, c]) => `${esc(pr)} ${inr(c * p.cost_gst, 2)}`).join(" + ")}</td></tr>`).join("");
+  $("#ownBody").innerHTML = `<div class="panel"><div class="card-h"><h2>See margins at any size</h2><span>The server is shared by your paying customers</span></div>
+      <div class="slider-row"><span class="small">Paying customers</span><input type="range" id="ownN" min="1" max="50" value="${n}" aria-label="Paying customers"><output id="ownNOut">${n} customer${n === 1 ? "" : "s"}</output></div></div>
+    <div class="own-grid">
+      <div class="panel"><div class="card-h"><h2>Ready plans</h2><span>If a customer uses everything included</span></div><div class="table-wrap"><table class="otable"><thead><tr><th>Plan</th><th class="num">Price</th><th class="num">Your cost</th><th class="num">Profit</th><th class="num">Margin</th><th class="num">Profit / year</th></tr></thead><tbody>${plans}</tbody></table></div></div>
+      <div class="panel"><div class="card-h"><h2>Fixed costs</h2></div><ul class="plist">${p.fixed.map((f) => `<li>${esc(f.label)}<b>${inr(f.amount)}/month</b></li>`).join("")}
+        <li>Server share per customer<b>${inr(p.server_share_per_company * p.cost_gst)}</b></li><li>GST on your costs<b>${p.gst_registered ? "claimed back" : "+18% (not registered)"}</b></li></ul></div>
+    </div>
+    <div class="panel"><div class="card-h"><h2>Per unit (Custom plan and add-ons)</h2><span>Your cost includes GST when you're not registered</span></div><div class="table-wrap"><table class="otable"><thead><tr><th>Unit</th><th class="num">Your cost</th><th class="num">You charge</th><th class="num">Margin</th><th>Where the cost goes</th></tr></thead><tbody>${units}</tbody></table></div>
+      <p class="tiny muted" style="margin:10px 0 0">To change a price, edit <code>salescore/services/pricing.py</code>, run the tests (they block prices below cost) and deploy. ${esc(p.ai_note)}</p></div>`;
+}
+function ownSystem() {
+  const s = own.sys, m = s.memory, d = s.database, pct = (a, b) => (a != null && b ? Math.round(a / b * 100) : null);
+  const tile = (title, v, sub, used) => `<div class="panel sys-tile ${used >= 90 ? "bad" : used >= 75 ? "warn" : ""}"><span class="small muted">${title}</span><span class="v">${v}</span>
+    ${used != null ? `<div class="track" role="progressbar" aria-valuenow="${used}" aria-valuemin="0" aria-valuemax="100" aria-label="${title}"><i style="width:${used}%"></i></div>` : ""}<span class="d">${sub}</span></div>`;
+  const mUsed = pct(m.machine_used_mb, m.machine_total_mb), aUsed = pct(m.app_mb, m.app_limit_mb), dUsed = pct(s.disk.used_gb, s.disk.total_gb), cap = pct(s.capacity.companies, s.capacity.comfortable);
+  $("#ownBody").innerHTML = `<div class="sysgrid">
+      ${tile("Running version", `<code style="font-size:1rem">${esc(s.version)}</code>`, `started ${ownDate(s.started_at)} · up ${s.uptime_h} h · Python ${esc(s.python)}`, null)}
+      ${tile("Server memory", m.machine_total_mb ? `${mUsed}%` : "–", m.machine_total_mb ? `${num(m.machine_used_mb)} of ${num(m.machine_total_mb)} MB in use` : "not available here", mUsed)}
+      ${tile("App memory", m.app_mb ? `${num(m.app_mb)} MB` : "–", m.app_limit_mb ? `limit ${num(m.app_limit_mb)} MB (${aUsed}%)` : "no container limit here", aUsed)}
+      ${tile("Disk", `${s.disk.free_gb} GB free`, `${s.disk.used_gb} of ${s.disk.total_gb} GB used`, dUsed)}
+      ${tile("Database", d.size_mb != null ? `${d.size_mb} MB` : "–", `${esc(d.engine)} · ${num(d.rows.activities || 0)} activity records`, null)}
+      ${tile("Capacity", `${s.capacity.companies} / ~${s.capacity.comfortable}`, `customers on this ${esc(s.capacity.machine)}; plan the next server near 20`, cap)}
+    </div>
+    <div class="own-grid">
+      <div class="panel"><div class="card-h"><h2>Deployments</h2><span>A row each time a new version starts</span></div><ul class="deps">${s.deployments.map((x, i) => `<li><code>${esc(x.version)}</code><span class="small muted">${ownDate(x.at)} ${new Date(x.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${i === 0 ? " · running" : ""}</span></li>`).join("") || `<li>No deployments recorded yet</li>`}</ul></div>
+      <div class="panel"><div class="card-h"><h2>Stored data</h2><span>Rows per table</span></div><ul class="plist">${Object.entries(d.rows).map(([k, v]) => `<li>${esc(k)}<b>${num(v)}</b></li>`).join("")}<li>Trained models<b>${s.models_mb} MB</b></li></ul></div>
+    </div>
+    <p class="tiny muted" style="margin:0">For alerts when memory or disk runs high, or the server stops, set up Google Cloud Monitoring on the VM (free at this size). This page shows the state when you open it.</p>`;
+}
+async function ownOpen(id) {
+  own.open = id;
+  const c = await api(`/v1/owner/customers/${id}`);
+  $("#ownDlgTitle").textContent = c.name;
+  $("#ownDlgSub").innerHTML = `${esc(PLAN_NAME[c.plan])} · ${esc(c.status_label)} · customer since ${ownDate(c.since)}`;
+  const names = { ai: "AI messages", wa_followup: "WhatsApp follow-ups", wa_campaign: "WhatsApp campaign msgs", emails: "Emails", call_minutes: "Call minutes" };
+  const meters = Object.entries(names).map(([k, label]) => {
+    const used = c.usage[k] || 0, lim = c.included[k], p = lim ? Math.min(100, Math.round(used / lim * 100)) : 0;
+    return `<div class="om ${lim && used >= lim ? "bad" : p >= 80 ? "warn" : ""}"><div class="t"><span>${label}</span><span>${lim ? `of ${num(lim)}` : lim === 0 ? "not included" : ""}</span></div><b>${num(used)}</b>${lim ? `<div class="track"><i style="width:${p}%"></i></div>` : ""}</div>`;
+  }).join("");
+  const priceVal = c.price_set ? c.revenue : "";
+  $("#ownDlgBody").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="kpi" style="cursor:default"><span class="k">Pays / month</span><span class="v">${c.price_set ? inr(c.revenue) : "–"}</span><span class="d">${c.price_set ? "" : "no price recorded"}</span></div>
+      <div class="kpi" style="cursor:default"><span class="k">Costs you this month</span><span class="v">${inr(c.cost)}</span><span class="d">usage ${inr(c.usage_cost)} + server ${inr(c.server_share)}</span></div>
+      <div class="kpi" style="cursor:default"><span class="k">Profit</span><span class="v ${c.profit < 0 ? "bad" : c.profit > 0 ? "good" : ""}">${signed(c.profit)}</span><span class="d"></span></div></div>
+    <div><div class="eyebrow" style="margin-bottom:10px">Usage this month</div><div class="ometers">${meters}</div></div>
+    <div class="own-grid" style="grid-template-columns:1fr 1fr"><div><div class="eyebrow" style="margin-bottom:10px">People (${c.people.length})</div><ul class="plist">${c.people.map((u) => `<li><div>${esc(u.name)} <span>${esc(u.email)}</span></div><span>${esc(u.role)} · ${u.last_login ? ago(u.last_login) : "never signed in"}</span></li>`).join("")}</ul></div>
+      <div><div class="eyebrow" style="margin-bottom:10px">Plan requests</div><ul class="plist">${c.requests.map((r) => `<li><div>${esc(r.label)} <span>${inr(r.monthly)}/month</span></div><span>${esc(r.status)} · ${ownDate(r.at)}</span></li>`).join("") || `<li><span>None yet</span></li>`}</ul></div></div>
+    <form class="panel" id="ownPlanForm" style="background:var(--surface-2);box-shadow:none"><div class="eyebrow" style="margin-bottom:10px">Change plan</div><div class="cfrm">
+      <div><label for="ownPlanSel">Plan</label><select id="ownPlanSel">${Object.entries(PLAN_NAME).map(([k, v]) => `<option value="${k}" ${c.plan === k ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+      <div><label for="ownPrice">Monthly price (₹)</label><input id="ownPrice" type="number" min="0" step="1" value="${priceVal}" placeholder="plan price"></div>
+      <button class="btn human" type="submit">Save plan</button></div><p class="tiny muted" style="margin:8px 0 0">Starter and Growth use their list price unless you enter another. Custom needs the agreed price. Trial restarts 14 days.</p></form>`;
+  const sel = $("#ownPlanSel"), price = $("#ownPrice");
+  const sync = () => { const k = sel.value; price.disabled = k === "trial"; if (k === "starter" || k === "growth") price.placeholder = `list price ${inr(({ starter: 5000, growth: 15000 })[k])}`; };
+  sel.addEventListener("change", () => { price.value = ""; sync(); }); sync();
+  $("#ownPlanForm").addEventListener("submit", (e) => { e.preventDefault(); busy(e.submitter, async () => {
+    await api(`/v1/owner/customers/${id}/plan`, { method: "PUT", body: { plan: sel.value, price: price.value === "" ? null : Number(price.value) } });
+    toast(`${c.name} is now on ${PLAN_NAME[sel.value]}.`); await ownLoad(true); ownRender(); ownOpen(id);
+  }); });
+  if (!$("#ownDlg").open) $("#ownDlg").showModal();
+}
+$("#ownDlg").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) $("#ownDlg").close(); });
+$("#ownTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-otab]"); if (b) ownGo(b.dataset.otab); });
+$("#ownRefresh").onclick = () => busy($("#ownRefresh"), async () => { own.pricing = own.sys = own.users = null; await ownLoad(true); ownRender(); toast("Up to date."); });
+$("#ownBody").addEventListener("click", (e) => {
+  const go = e.target.closest("[data-ogo]"), att = e.target.closest("[data-att]"), row = e.target.closest("[data-cust]"), open = e.target.closest("[data-cust-open]");
+  const sort = e.target.closest("[data-osort]"), chip = e.target.closest("[data-oplan]"), rq = e.target.closest("[data-rq]"), rf = e.target.closest("[data-orf]");
+  if (go) {
+    const [tab, f] = go.dataset.ogo.split("|");
+    if (tab === "cust") return ownOpen(+f);
+    const filters = { q: "", plan: "", status: "" };
+    if (f) { const [k, v] = f.split("="); filters[k] = v; }
+    return ownGo(tab, tab === "customers" ? filters : {});
+  }
+  if (att) return att.dataset.att === "requests" ? ownGo("requests", { reqFilter: "pending" }) : ownOpen(+att.dataset.id);
+  if (row) return ownOpen(+row.dataset.cust);
+  if (open) return ownOpen(+open.dataset.custOpen);
+  if (sort) { const k = sort.dataset.osort; own.sort = [k, own.sort[0] === k ? -own.sort[1] : (k === "name" ? 1 : -1)]; return ownRender(); }
+  if (chip) { own.plan = chip.dataset.oplan; return ownRender(); }
+  if (e.target.closest("[data-oclear]")) { Object.assign(own, { q: "", plan: "", status: "" }); return ownRender(); }
+  if (rf) { own.reqFilter = rf.dataset.orf; return ownRender(); }
+  if (rq) {
+    if (rq.dataset.d === "approve" && rq.dataset.armed !== "1") { rq.dataset.armed = "1"; rq.textContent = "Click again to switch their plan"; setTimeout(() => { rq.dataset.armed = ""; rq.textContent = "Approve & switch plan"; }, 4000); return; }
+    busy(rq, async () => { const r = await api(`/v1/owner/requests/${rq.dataset.rq}/${rq.dataset.d}`, { method: "POST" }); toast(r.status === "approved" ? "Approved. Their plan is switched." : "Dismissed."); await ownLoad(true); ownRender(); });
+  }
+});
+$("#ownBody").addEventListener("input", (e) => {
+  if (e.target.id === "ownQ") { own.q = e.target.value; const pos = e.target.selectionStart; ownRender(); const q = $("#ownQ"); q.focus(); q.setSelectionRange(pos, pos); }
+  if (e.target.id === "ownN") { const n = +e.target.value; $("#ownNOut").textContent = `${n} customer${n === 1 ? "" : "s"}`; clearTimeout(own.nt);
+    own.nt = setTimeout(async () => { own.companies = n; own.pricing = await api(`/v1/owner/pricing?companies=${n}`); ownRender(); $("#ownN")?.focus(); }, 250); }
+});
+$("#ownBody").addEventListener("change", (e) => { if (e.target.id === "ownStatus") { own.status = e.target.value; ownRender(); } });
+
+
+// Users: every login across all companies. Reset a password, switch a login off or on, remove it.
+function ownUsers() {
+  const q = (own.uq || "").toLowerCase();
+  const list = own.users.filter((u) => !q || `${u.name} ${u.email} ${u.company}`.toLowerCase().includes(q));
+  const rows = list.map((u) => `<tr><td class="nm"><b>${esc(u.name)}</b><span>${esc(u.email)}</span></td>
+      <td><button class="btn ghost sm" type="button" data-cust-open="${u.tenant_id}" style="padding:0">${esc(u.company)}</button></td>
+      <td>${esc(u.role)}${u.owner ? ` ${pill("Owner", "human")}` : ""}</td><td>${u.last_login ? ago(u.last_login) : "never"}</td>
+      <td>${u.disabled ? pill("Switched off", "bad") : pill("Active", "good")}</td>
+      <td class="num"><div class="acts">${u.owner ? "" : `<button class="btn sm ghost" type="button" data-upw="${u.id}">New password</button>
+        <button class="btn sm ghost" type="button" data-uoff="${u.id}" data-on="${u.disabled ? 1 : 0}">${u.disabled ? "Switch on" : "Switch off"}</button>
+        <button class="btn sm danger" type="button" data-udel="${u.id}">Remove</button>`}</div>
+        <form class="upw" data-upw-form="${u.id}" hidden><input type="text" placeholder="New password, 8+ characters" autocomplete="off" aria-label="New password for ${esc(u.email)}"><button class="btn sm human">Save</button></form></td></tr>`).join("");
+  $("#ownBody").innerHTML = `<div class="panel"><div class="own-tools"><input type="search" id="ownUQ" placeholder="Search name, email or company" value="${esc(own.uq || "")}" aria-label="Search logins">
+      <span class="small muted" style="margin-left:auto">${list.length} of ${own.users.length} logins · ${own.users.filter((u) => u.disabled).length} switched off</span></div>
+    <div class="table-wrap"><table class="otable"><thead><tr><th>Login</th><th>Company</th><th>Role</th><th>Last sign-in</th><th>Status</th><th class="num">Actions</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="6"><div class="empty">No logins match.</div></td></tr>`}</tbody></table></div>
+    <p class="tiny muted" style="margin:10px 0 0">Switching a login off signs it out everywhere at once. A company's only sales lead can't be removed. Owner logins are managed in the server's .env.</p></div>`;
+}
+$("#ownBody").addEventListener("click", (e) => {
+  const pw = e.target.closest("[data-upw]"), off = e.target.closest("[data-uoff]"), del = e.target.closest("[data-udel]");
+  if (pw) { const f = $(`[data-upw-form="${pw.dataset.upw}"]`); f.hidden = !f.hidden; if (!f.hidden) f.querySelector("input").focus(); }
+  if (off) busy(off, async () => {
+    const turnOff = off.dataset.on !== "1";
+    await api(`/v1/owner/users/${off.dataset.uoff}`, { method: "PUT", body: { disabled: turnOff } });
+    toast(turnOff ? "Switched off. That login is signed out everywhere." : "Switched on. They can sign in again."); own.users = null; await ownLoad(); ownRender();
+  });
+  if (del) {
+    if (del.dataset.armed !== "1") { del.dataset.armed = "1"; del.textContent = "Click again to remove"; setTimeout(() => { del.dataset.armed = ""; del.textContent = "Remove"; }, 4000); return; }
+    busy(del, async () => { await api(`/v1/owner/users/${del.dataset.udel}`, { method: "DELETE" }); toast("Removed. That login can't sign in any more."); own.users = null; await ownLoad(true); ownRender(); });
+  }
+});
+$("#ownBody").addEventListener("submit", (e) => {
+  const f = e.target.closest("[data-upw-form]"); if (!f) return;
+  e.preventDefault();
+  busy(f.querySelector("button"), async () => {
+    await api(`/v1/owner/users/${f.dataset.upwForm}`, { method: "PUT", body: { password: f.querySelector("input").value } });
+    toast("New password set. Share it with them directly."); f.hidden = true;
+  });
+});
+$("#ownBody").addEventListener("input", (e) => {
+  if (e.target.id === "ownUQ") { own.uq = e.target.value; const pos = e.target.selectionStart; ownRender(); const q = $("#ownUQ"); q.focus(); q.setSelectionRange(pos, pos); }
+});
+
+// ---------- the admin page: its own sign-in; only owner logins (OWNER_EMAILS on the server) get past it ----------
+async function api(path, { method = "GET", body } = {}) {
+  const res = await fetch(path, { method, headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const data = await res.json().catch(() => null);
+  if (res.status === 401) { showSignIn(); throw new Error("Please sign in."); }
+  if (res.status === 403 && path.startsWith("/v1/owner")) { showSignIn("Please sign in with the admin username."); throw new Error("Not an owner login."); }
+  if (!res.ok) throw new Error(typeof data?.detail === "string" ? data.detail : JSON.stringify(data?.detail ?? res.statusText));
+  return data;
+}
+function showSignIn(msg = "") {
+  $("#app").hidden = true; $("#signin").hidden = false;
+  $("#siErr").textContent = msg; $("#siErr").hidden = !msg;
+  $("#siEmail").focus();
+}
+async function start() {
+  try {
+    const me = await api("/v1/owner/me");
+    $("#who").textContent = me.email;
+    $("#signin").hidden = true; $("#app").hidden = false;
+    await ownStart();
+  } catch { /* the sign-in form is showing */ }
+}
+$("#siForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  busy($("#siBtn"), async () => {
+    const r = await fetch("/v1/admin-auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: $("#siEmail").value, password: $("#siPass").value }) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) { $("#siErr").textContent = typeof d?.detail === "string" ? d.detail : "Sign-in failed"; $("#siErr").hidden = false; return; }
+    $("#siPass").value = "";
+    await start();
+  });
+});
+$("#signOut").onclick = async () => { await fetch("/v1/admin-auth/logout", { method: "POST" }).catch(() => {}); location.reload(); };
+const themeBtn = $("#theme");
+themeBtn.onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+};
+start();
+
+</script>
+</body>
+</html>

@@ -12,6 +12,8 @@ DEMO_BOOKING_URL = os.getenv("DEMO_BOOKING_URL", "https://www.gamyan.space/#cont
 CONTACT_URL = os.getenv("CONTACT_URL", "https://www.gamyan.space/#contact")
 
 # LLM: any OpenAI-compatible Chat Completions endpoint (see ai/llm.py for provider presets)
+OWNER_EMAILS = {e.strip().lower() for e in os.getenv("OWNER_EMAILS", "").split(",") if e.strip()}  # platform owner logins: the owner console
+GST_REGISTERED = os.getenv("GST_REGISTERED", "").lower() in ("1", "true", "yes")  # only a GST-registered seller may add 18% GST to its prices
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # gemini | openrouter | ollama | custom
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")            # overrides the preset
 LLM_MODEL = os.getenv("LLM_MODEL")                  # main model: live customer replies, campaign drafts

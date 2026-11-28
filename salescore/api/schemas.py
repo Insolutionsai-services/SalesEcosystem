@@ -85,11 +85,23 @@ class NewUser(BaseModel):
     email: str
     password: str
     role: str = "member"
+    access: dict | None = None         # screens and agent levels for a sales rep; empty = standard access
 
 
 class UserEdit(BaseModel):
     role: str | None = None
     password: str | None = None        # admin reset
+    access: dict | None = None         # sales lead sets what this rep may open and change
+    reset_access: bool = False         # back to the standard sales-rep access
+
+
+class PlanRequest(BaseModel):
+    plan: str
+    cycle: str = "month"
+    agents: list[str] = []             # custom plan only
+    usage: dict[str, int] = {}         # custom plan: chosen step per usage row
+    voice: bool = False                # Voice agent add-on for Starter / Growth
+    addons: dict[str, dict] = {}       # {addon: {pack: index, qty: n}}
 
 
 class GeminiKey(BaseModel):
@@ -199,7 +211,8 @@ def fields(obj, *names: str) -> dict:
 
 
 def user_out(u: User) -> dict:
-    return fields(u, "id", "name", "email", "role", "last_login_at")
+    from ..services import access
+    return {**fields(u, "id", "name", "email", "role", "last_login_at"), "access": access.resolve(u), "custom_access": bool(u.access) and u.role != "admin"}
 
 
 class OutreachMail(BaseModel):

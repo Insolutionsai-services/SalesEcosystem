@@ -9,13 +9,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
     create_engine,
     inspect,
 )
-from sqlalchemy import event, select
+from sqlalchemy import event, func, select
 from sqlalchemy import text as sql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -38,7 +39,10 @@ class Tenant(Base):
     wa_token: Mapped[str | None] = mapped_column(Text)  # ponytail: plaintext; encrypt (KMS/pgcrypto) before real clients
     gemini_key: Mapped[str | None] = mapped_column(Text)  # the company's own LLM key (Settings → AI); never sent to the browser. ponytail: plaintext, as wa_token
     gemini_model: Mapped[str | None] = mapped_column(String(80))  # the flash-lite model that key was checked against
-    plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | unlimited; see services/plan.py
+    plan: Mapped[str] = mapped_column(String(20), default="trial")   # trial | starter | growth | custom | unlimited (arranged by hand); see services/plan.py
+    plan_price: Mapped[int | None] = mapped_column(Integer)          # agreed monthly price in ₹ (owner console); None = not set
+    plan_details: Mapped[dict | None] = mapped_column(JSON)          # what the approved plan includes (agents, amounts, cycle)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=now)
     plan_started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     owner_email: Mapped[str | None] = mapped_column(String(200))  # proved at sign-up; the only address a free company can reach. Never editable
     source: Mapped[str | None] = mapped_column(String(120))  # how a self-created company found us, e.g. "mail city=pune kind=smart"
@@ -55,6 +59,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    disabled: Mapped[bool | None] = mapped_column(Boolean, default=False)  # set from the admin dashboard: can't sign in
+    access: Mapped[dict | None] = mapped_column(JSON)  # what a sales rep may open and change (services/access.py); empty = standard rep access
 
 
 class LoginToken(Base):
@@ -207,6 +213,14 @@ class Campaign(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
 
 
+class Deployment(Base):
+    """One row each time a new code version starts on the server (owner console → System)."""
+    __tablename__ = "deployments"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    version: Mapped[str] = mapped_column(String(80))
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
 # Hosted Postgres (Neon, Supabase...) often hands out postgres:// URLs; pre_ping revives connections the host put to sleep
 _URL = re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", DATABASE_URL)
 engine = create_engine(_URL, pool_pre_ping=not _URL.startswith("sqlite"))
@@ -240,3 +254,6 @@ def add_missing_columns(eng) -> None:
         users = User.__table__
         first = select(users.c.email).where(users.c.tenant_id == tenants.c.id).order_by(users.c.id).limit(1).scalar_subquery()
         conn.execute(tenants.update().where(tenants.c.plan == "trial", tenants.c.owner_email.is_(None)).values(owner_email=first))
+        # companies from before created_at existed: their first login's date, else when their plan started
+        joined = select(func.min(users.c.created_at)).where(users.c.tenant_id == tenants.c.id).scalar_subquery()
+        conn.execute(tenants.update().where(tenants.c.created_at.is_(None)).values(created_at=func.coalesce(joined, tenants.c.plan_started_at)))

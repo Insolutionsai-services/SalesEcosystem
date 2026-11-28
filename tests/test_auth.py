@@ -211,3 +211,40 @@ def test_gemini_key_is_lead_only_checked_and_never_shown(client, monkeypatch):
     login(client, "ravi@acme.in", "ravi-pass-1")
     assert client.put("/v1/ai/key", json={"key": ""}).status_code == 403   # sales reps can't change it
     assert client.get("/v1/ai").json()["has_key"]
+
+
+def test_sales_lead_sets_per_person_access(client):
+    company(client, "Acme Paints", "boss@acme.in")
+    login(client, "boss@acme.in", "owner-pass-1")
+    opts = client.get("/v1/access/options").json()
+    assert {p["key"] for p in opts["pages"]} >= {"home", "marketing", "settings"} and "blueprint" not in {p["key"] for p in opts["pages"]}
+    desk = next(t for t in opts["templates"] if t["key"] == "replies")["access"]
+    ravi = client.post("/v1/users", json={"name": "Ravi", "email": "ravi@acme.in", "password": "ravi-pass-1", "access": desk}).json()
+    assert ravi["custom_access"] and "marketing" not in ravi["access"]["pages"]
+    mk = {"pages": ["marketing", "agents"], "agents": {"strategy": "edit", "voice": "hidden"}}
+    assert client.put(f"/v1/users/{ravi['id']}", json={"access": {"pages": ["nope"]}}).status_code == 422
+    meera = client.post("/v1/users", json={"name": "Meera", "email": "meera@acme.in", "password": "meera-pass-1", "access": mk}).json()
+    client.post("/v1/auth/logout")
+
+    login(client, "ravi@acme.in", "ravi-pass-1")                          # reply desk: chats yes, campaigns and settings no
+    assert client.get("/v1/me").json()["user"]["access"]["pages"] == ["home", "approvals", "conversations", "quotes", "copilot"]
+    assert client.get("/v1/contacts").status_code == 200
+    assert client.get("/v1/playbook").status_code == 403
+    assert client.get("/v1/agents").status_code == 403
+    assert client.post("/v1/marketing/launch", json={}).status_code == 403
+    assert client.get("/v1/insights").status_code == 200                  # the Command centre still works
+    assert client.get("/v1/access/options").status_code == 403            # only the lead edits access
+    client.post("/v1/auth/logout")
+
+    login(client, "meera@acme.in", "meera-pass-1")                        # marketing: edits Strategy only, never sees Voice
+    agents = {a["key"]: a for a in client.get("/v1/agents").json()["agents"]}
+    assert "voice" not in agents and agents["strategy"]["can_edit"] and not agents["approval"]["can_edit"]
+    assert client.put("/v1/agents/strategy", json={"values": {"marketing.cooldown_days": 10}}).status_code == 200
+    assert client.put("/v1/agents/approval", json={"values": {"pricing.auto_approve_discount_pct": 50}}).status_code == 403
+    assert client.get("/v1/contacts").status_code == 403
+    client.post("/v1/auth/logout")
+
+    login(client, "boss@acme.in", "owner-pass-1")                         # back to standard, and a promoted lead keeps no limits
+    assert client.put(f"/v1/users/{meera['id']}", json={"reset_access": True}).json()["custom_access"] is False
+    lead = client.put(f"/v1/users/{ravi['id']}", json={"role": "admin"}).json()
+    assert lead["access"]["agents"]["voice"] == "edit" and not lead["custom_access"]

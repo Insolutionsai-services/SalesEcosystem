@@ -6,8 +6,9 @@ from contextlib import contextmanager
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
 
+from ..core import config
 from ..core.models import Session, Tenant, User
-from ..services import plan, users
+from ..services import access, admin_auth, plan, users
 
 DOMAIN_ERRORS = (ValueError, KeyError)
 SESSION_COOKIE = "sc_session"
@@ -52,6 +53,8 @@ def tenant_of(request: Request, x_api_key: str | None = Header(None), user: User
         raise HTTPException(401, "please sign in")
     else:
         tenant = s.get(Tenant, user.tenant_id)
+        if (page := access.blocked_page(user, request.method, request.url.path)) is not None:
+            raise HTTPException(403, f"your sales lead hasn't given you access to {dict((k, l) for k, l, _ in access.PAGES)[page]}")
     if request.method != "GET" and plan.expired(tenant):
         raise plan.PlanLimit("trial_over")
     return tenant
@@ -63,12 +66,35 @@ def manager(x_api_key: str | None = Header(None), user: User | None = Depends(si
         raise _lead_only()
 
 
-def require_admin(x_admin_key: str = Header(...)) -> None:
+def agent_editor(key: str, x_api_key: str | None = Header(None), user: User | None = Depends(signed_in)) -> None:
+    """An agent's rules: the sales lead, the API key holder, or a rep the lead gave edit access to this agent."""
+    if not x_api_key and access.agent_level(user, key) != "edit":
+        raise HTTPException(403, "your sales lead hasn't let you change this agent")
+
+
+def owner_only(request: Request, x_admin_key: str | None = Header(None), user: User | None = Depends(signed_in)) -> None:
+    """The platform owner: signed in at /admin (admin username + password), a login in OWNER_EMAILS, or the admin key."""
+    if admin_auth.valid(request.cookies.get(admin_auth.COOKIE)):
+        return
+    if user is not None and user.email in config.OWNER_EMAILS:
+        return
     expected = os.getenv("ADMIN_KEY")
-    if not expected:
-        raise HTTPException(503, "ADMIN_KEY not configured")
-    if not hmac.compare_digest(x_admin_key, expected):
-        raise HTTPException(401, "invalid admin key")
+    if x_admin_key and expected and hmac.compare_digest(x_admin_key, expected):
+        return
+    if user is None and not x_admin_key:
+        raise HTTPException(401, "please sign in")
+    raise HTTPException(403, "only the platform owner can open this")
+
+
+def require_admin(request: Request, x_admin_key: str | None = Header(None)) -> None:
+    """Platform-owner calls: signed in at /admin, or (only when ADMIN_KEY is set in .env) the X-Admin-Key header.
+    Leaving ADMIN_KEY empty switches the key off entirely: the /admin sign-in is then the only way in."""
+    if admin_auth.valid(request.cookies.get(admin_auth.COOKIE)):
+        return
+    expected = os.getenv("ADMIN_KEY")
+    if x_admin_key and expected and hmac.compare_digest(x_admin_key, expected):
+        return
+    raise HTTPException(401, "sign in at /admin" if not x_admin_key else "invalid admin key")
 
 
 def owned(s, model, id_: int, tenant: Tenant):
